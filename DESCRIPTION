@@ -1,0 +1,16 @@
+Package: ATM
+Type: Package
+Title: Fitting Advection-Taxis Movement models using tags and resource surveys
+Version: 0.1.0
+Date: 2020-11-09
+Authors@R: 
+    c(person(given = "James",
+             family = "Thorson",
+             role = c("aut", "cre"),
+             email = "James.Thorson@noaa.gov",
+             comment = c(ORCID = "0000-0001-7415-1010"))
+    )
+URL: http://github.com/James-Thorson-NOAA/ATM
+BugReports: http://github.com/James-Thorson-NOAA/ATM/issues
+License: GPL-3
+RoxygenNote: 7.1.1
