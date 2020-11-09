@@ -33,6 +33,9 @@ function( X_guyk,
     param_list = relist(param_vec,skeleton)
     sigma2 = exp(2 * param_list$ln_sigma)
     alpha = sigma2 * (-1+2*plogis(param_list$alpha_logit_ratio))
+    if(!is.null(dimnames(data_list$X_guyk)[[4]])){
+      names(alpha) = dimnames(data_list$X_guyk)[[4]]
+    }
     if(what=="params") return(list("alpha"=alpha, "sigma2"=sigma2))
 
     # Initiatize cumulator
@@ -114,7 +117,7 @@ function( X_guyk,
   Msum_gg = Obj(parameter_estimates$par, what="Msum_gg", skeleton=param_list, data_list=data_list)
 
   # return
-  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "Msum_gg"=Msum_gg)
+  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "Msum_gg"=Msum_gg, "data_list"=data_list)
   class(Return) = "fitR"
   return(Return)
 }
