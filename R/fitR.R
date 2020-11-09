@@ -91,7 +91,7 @@ function( X_guyk,
     #
     NLL_satellite = 0
     for( iI in 1:nrow(satellite_iz) ){
-      NLL_satellite = NLL_satellite + -1 * log(satellite_igt[iI,satellite_iz[iI,'g_recovery'],satellite_iz[iI,'t_recovery']])
+      NLL_satellite = NLL_satellite - log(satellite_igt[iI,satellite_iz[iI,'g_recovery'],satellite_iz[iI,'t_recovery']])
     }
 
     #
@@ -109,7 +109,7 @@ function( X_guyk,
 
   # Compress to vector
   param_vec = unlist(param_list)
-  # Obj(param_vec, skeleton=param_list, data_list=data_list)
+  #return(Obj(param_vec, skeleton=param_list, data_list=data_list))
 
   # Optimize
   parameter_estimates = nlminb( objective=Obj, start=param_vec, skeleton=param_list, data_list=data_list, control=list(trace=1) )

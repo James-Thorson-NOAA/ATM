@@ -46,7 +46,7 @@ function( X_guyk,
   distance_gg = as.matrix(dist(loc_gz[,c('x','y')]))
   min_distance = min( ifelse(distance_gg==0,NA,distance_gg), na.rm=TRUE )
   A_gg = ifelse( abs(as.matrix(distance_gg)-min_distance)/min_distance < 1e-5, 1, 0 )
-  A_gg = as(A_gg, "dgTMatrix")
+  #A_gg = as(A_gg, "dgTMatrix")
 
   # bundle
   if( cpp_version %in% c("ATM_v1_0_0.cpp", "R") ){
