@@ -49,7 +49,7 @@ function( X_guyk,
   #A_gg = as(A_gg, "dgTMatrix")
 
   # bundle
-  if( cpp_version %in% c("ATM_v1_0_0.cpp", "R") ){
+  if( cpp_version %in% c("ATM_v1_0_0", "R") ){
     data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz, "satellite_iz"=satellite_iz, "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=A_gg )
   }
 

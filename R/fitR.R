@@ -32,7 +32,7 @@ function( X_guyk,
     # Extract parameters
     param_list = relist(param_vec,skeleton)
     sigma2 = exp(2 * param_list$ln_sigma)
-    alpha = sigma2 * (-1+2*plogis(param_list$alpha_logit_ratio))
+    alpha = sigma2 * (2 * plogis(param_list$alpha_logit_ratio) - 1)
     if(!is.null(dimnames(data_list$X_guyk)[[4]])){
       names(alpha) = dimnames(data_list$X_guyk)[[4]]
     }
