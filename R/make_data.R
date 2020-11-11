@@ -18,6 +18,9 @@ function( X_guyk,
   duration_u,
   log2steps = 20 ){
 
+  # Check for issues
+  if( !is.na(log2steps) && abs(log2steps)==Inf ) stop("`log2steps` cannot be Inf")
+
   # Get dimensions
   n_g = dim(X_guyk)[1]
   n_u = dim(X_guyk)[2]
@@ -46,13 +49,22 @@ function( X_guyk,
   # Calculate adjacency matrix
   distance_gg = as.matrix(dist(loc_gz[,c('x','y')]))
   min_distance = min( ifelse(distance_gg==0,NA,distance_gg), na.rm=TRUE )
-  A_gg = ifelse( abs(as.matrix(distance_gg)-min_distance)/min_distance < 1e-5, 1, 0 )
-  #A_gg = as(A_gg, "dgTMatrix")
+  Adense_gg = ifelse( abs(as.matrix(distance_gg)-min_distance)/min_distance < 1e-5, 1, 0 )
+  Asparse_gg = as(Adense_gg, "dgTMatrix")
 
   # bundle
-  if( cpp_version %in% c("ATM_v1_0_0", "R") ){
+  if( cpp_version %in% c("R") ){
     data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz, "satellite_iz"=satellite_iz,
-      "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=A_gg, "log2steps"=log2steps )
+      "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg, "log2steps"=log2steps )
+  }
+  if( cpp_version %in% c("ATM_v1_0_0") ){
+    data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
+      "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg, "log2steps"=log2steps )
+  }
+  if( cpp_version %in% c("ATM_v2_0_0") ){
+    data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
+      "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Asparse_gg, "log2steps"=log2steps,
+      "A_ij"=cbind(Asparse_gg@i,Asparse_gg@j) )
   }
 
   # return

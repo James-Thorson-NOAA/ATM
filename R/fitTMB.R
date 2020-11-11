@@ -32,16 +32,11 @@ function( X_guyk,
     cpp_version = cpp_version,
     log2steps = log2steps
   )
-  #data_list$A_gg = as(data_list$A_gg, "dgTMatrix")
-
-  # Convert indexing from R to CPP convention
-  data_list$satellite_iz = data_list$satellite_iz - 1
-  data_list$uy_tz = data_list$uy_tz - 1
 
   # Make parameters
   param_list = list(
     "ln_sigma" = log(100),
-    "alpha_logit_ratio_k" = 0.1 * rnorm(dim(data_list$X_guyk)[4])
+    "alpha_logit_ratio_k" = 0 * rnorm(dim(data_list$X_guyk)[4])
   )
 
   # Which map
