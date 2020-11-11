@@ -11,7 +11,8 @@ make_data(
   satellite_iz,
   survey_jz,
   cpp_version = "R",
-  duration_u
+  duration_u,
+  log2steps = 20
 )
 }
 \value{

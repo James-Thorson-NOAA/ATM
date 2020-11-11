@@ -15,7 +15,8 @@ function( X_guyk,
   satellite_iz,
   survey_jz,
   cpp_version = "R",
-  duration_u ){
+  duration_u,
+  log2steps = 20 ){
 
   # Get dimensions
   n_g = dim(X_guyk)[1]
@@ -50,7 +51,8 @@ function( X_guyk,
 
   # bundle
   if( cpp_version %in% c("ATM_v1_0_0", "R") ){
-    data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz, "satellite_iz"=satellite_iz, "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=A_gg )
+    data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz, "satellite_iz"=satellite_iz,
+      "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=A_gg, "log2steps"=log2steps )
   }
 
   # return

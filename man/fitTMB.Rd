@@ -15,6 +15,7 @@ fitTMB(
   tmb_dir = system.file("executables", package = "ATM"),
   run_dir = getwd(),
   compile_dir = run_dir,
+  log2steps = 20,
   ...
 )
 }

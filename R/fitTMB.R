@@ -19,6 +19,7 @@ function( X_guyk,
   tmb_dir = system.file("executables",package="ATM"),
   run_dir = getwd(),
   compile_dir = run_dir,
+  log2steps = 20,
   ... ){
 
   # Build data
@@ -28,7 +29,8 @@ function( X_guyk,
     satellite_iz = satellite_iz,
     survey_jz = survey_jz,
     duration_u = duration_u,
-    cpp_version = cpp_version
+    cpp_version = cpp_version,
+    log2steps = log2steps
   )
   #data_list$A_gg = as(data_list$A_gg, "dgTMatrix")
 
@@ -62,11 +64,31 @@ function( X_guyk,
   parameter_estimates = TMBhelper::fit_tmb( Obj, control=list(trace=1), ... )
 
   # Extract stuff
-  Report = Obj$report( parameter_estimates$par )
-  parhat = Obj$env$parList( parameter_estimates$par )
+  Return = list("parameter_estimates"=parameter_estimates, "data_list"=data_list)
+  class(Return) = "fitTMB"
+  Return$Report = Obj$report( parameter_estimates$par )
+  Return$parhat = Obj$env$parList( parameter_estimates$par )
 
   # return
-  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "data_list"=data_list. "Report"=Report)
-  class(Return) = "fitTMB"
   return(Return)
 }
+
+#' Print parameter estimates and standard errors.
+#'
+#' @title Print parameter estimates
+#' @param x Output from \code{\link{fitTMB}}
+#' @param ... Not used
+#' @return NULL
+#' @method print fitTMB
+#' @export
+print.fitTMB <- function(x, ...)
+{
+  cat("fitTMB(.) result\n")
+  if( "parameter_estimates" %in% names(x) ){
+    print( x$parameter_estimates )
+  }else{
+    cat("`parameter_estimates` not available in `fitTMB`\n")
+  }
+  invisible(x$parameter_estimates)
+}
+

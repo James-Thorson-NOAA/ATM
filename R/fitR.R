@@ -15,7 +15,11 @@ function( X_guyk,
   satellite_iz = NULL,
   survey_jz = NULL,
   #cpp_version = FishStatsUtils::get_latest_version(package="ATM"),
-  duration_u = NULL ){
+  duration_u = NULL,
+  log2steps = 20 ){
+
+  #
+  start_time = Sys.time()
 
   # Build data
   data_list = make_data( X_guyk = X_guyk,
@@ -23,8 +27,9 @@ function( X_guyk,
     uy_tz = uy_tz,
     satellite_iz = satellite_iz,
     survey_jz = survey_jz,
-    duration_u = duration_u #,
-    #cpp_version = cpp_version
+    duration_u = duration_u,
+    #cpp_version = cpp_version,
+    log2steps = log2steps
   )
 
   # Objective function
@@ -64,7 +69,7 @@ function( X_guyk,
       Mprimesum_gg = Mprimesum_gg + Mprime_gg
 
       # Movement probability matrix
-      Movement_gg = expm(Mprime_gg)
+      Movement_gg = matexp(Mprime_gg, log2steps=data_list$log2steps)
 
       # Check
       #assign(x="par", value=par, envir=.GlobalEnv)
@@ -108,9 +113,8 @@ function( X_guyk,
   }
 
   # Make parameter list
-  sigma2 = 4^2
   param_list = list( "ln_sigma"=log(4),
-    "alpha_logit_ratio"=rep(0,dim(data_list$X_guyk)[4]) )
+    "alpha_logit_ratio"=0.1*rnorm(dim(data_list$X_guyk)[4]) )
 
   # Compress to vector
   param_vec = unlist(param_list)
@@ -118,18 +122,39 @@ function( X_guyk,
 
   # Optimize
   parameter_estimates = nlminb( objective=Obj, start=param_vec, skeleton=param_list, data_list=data_list, control=list(trace=1) )
-  parhat = Obj(parameter_estimates$par, what="params", skeleton=param_list, data_list=data_list)
-  Msum_gg = Obj(parameter_estimates$par, what="Msum_gg", skeleton=param_list, data_list=data_list)
-  Mprimesum_gg = Obj(parameter_estimates$par, what="Mprimesum_gg", skeleton=param_list, data_list=data_list)
-  Diffusion_gg = Obj(parameter_estimates$par, what="final_D", skeleton=param_list, data_list=data_list)
-  Taxis_gg = Obj(parameter_estimates$par, what="final_T", skeleton=param_list, data_list=data_list)
-  Preference_g = Obj(parameter_estimates$par, what="Preference_g", skeleton=param_list, data_list=data_list)
-  NLL_i = Obj(parameter_estimates$par, what="NLL_i", skeleton=param_list, data_list=data_list)
+  parameter_estimates[["time_for_MLE"]] = Sys.time() - start_time
+
+  # Add slots
+  Return = list("parameter_estimates"=parameter_estimates, "data_list"=data_list)
+  class(Return) = "fitR"
+  Return$parhat = Obj(parameter_estimates$par, what="params", skeleton=param_list, data_list=data_list)
+  Return$Msum_gg = Obj(parameter_estimates$par, what="Msum_gg", skeleton=param_list, data_list=data_list)
+  #Return$Mprimesum_gg = Obj(parameter_estimates$par, what="Mprimesum_gg", skeleton=param_list, data_list=data_list)
+  #Return$Diffusion_gg = Obj(parameter_estimates$par, what="final_D", skeleton=param_list, data_list=data_list)
+  #Return$Taxis_gg = Obj(parameter_estimates$par, what="final_T", skeleton=param_list, data_list=data_list)
+  #Return$Preference_g = Obj(parameter_estimates$par, what="Preference_g", skeleton=param_list, data_list=data_list)
+  #Return$NLL_i = Obj(parameter_estimates$par, what="NLL_i", skeleton=param_list, data_list=data_list)
 
   # return
-  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "Diffusion_gg"=Diffusion_gg,
-    "Msum_gg"=Msum_gg, "Mprimesum_gg"=Mprimesum_gg, "data_list"=data_list, "Taxis_gg"=Taxis_gg,
-    "Preference_g"=Preference_g, "NLL_i"=NLL_i)
-  class(Return) = "fitR"
   return(Return)
 }
+
+#' Print parameter estimates and standard errors.
+#'
+#' @title Print parameter estimates
+#' @param x Output from \code{\link{fitR}}
+#' @param ... Not used
+#' @return NULL
+#' @method print fitR
+#' @export
+print.fitR <- function(x, ...)
+{
+  cat("fitR(.) result\n")
+  if( "parameter_estimates" %in% names(x) ){
+    print( x$parameter_estimates )
+  }else{
+    cat("`parameter_estimates` not available in `fitR`\n")
+  }
+  invisible(x$parameter_estimates)
+}
+

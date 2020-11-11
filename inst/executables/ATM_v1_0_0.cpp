@@ -21,6 +21,23 @@ matrix<Type> subtract_colsum( int n_g, matrix<Type> mat_gg ){
   return mat_gg;
 }
 
+// Function to calculate matrix exponential, or approximate it using Euler method
+template<class Type>
+matrix<Type> matexp( int n_g, int log2steps, matrix<Type> mat_gg ){
+
+  if( log2steps > 100 ){
+    return expm(mat_gg);
+  }else{
+    matrix<Type> I_gg( n_g, n_g );
+    I_gg.setIdentity();
+    mat_gg = I_gg + mat_gg / pow(2, log2steps);
+    for( int step=0; step<log2steps; step++ ){
+      mat_gg = mat_gg * mat_gg;
+    }
+    return( mat_gg );
+  }
+}
+
 template<class Type>
 Type objective_function<Type>::operator() ()
 {
@@ -28,6 +45,7 @@ Type objective_function<Type>::operator() ()
   using namespace Eigen;
 
   // Data
+  DATA_INTEGER( log2steps );
   DATA_ARRAY( X_guyk );
   DATA_IMATRIX( uy_tz );
   DATA_IMATRIX( satellite_iz );
@@ -67,8 +85,6 @@ Type objective_function<Type>::operator() ()
   matrix<Type> Mprime_gg( n_g, n_g );
   matrix<Type> Mprimesum_gg( n_g, n_g );
   matrix<Type> Movement_gg( n_g, n_g );
-  matrix<Type> I_gg( n_g, n_g );
-  I_gg.setIdentity();
   vector<Type> Preference_g( n_g );
   vector<Type> init_g( n_g );
   Mprimesum_gg.setZero();
@@ -95,7 +111,7 @@ Type objective_function<Type>::operator() ()
     // Movement probability matrix
     Mprime_gg = Diffusion_gg + Taxis_gg;
     Mprimesum_gg += Mprime_gg;
-    Movement_gg = expm( Mprime_gg );
+    Movement_gg = matexp( n_g, log2steps, Mprime_gg );
 
     // Apply to satellite tags
     // TODO:  Explore logspace_sum for numerical stability

@@ -10,7 +10,8 @@ fitR(
   uy_tz,
   satellite_iz = NULL,
   survey_jz = NULL,
-  duration_u = NULL
+  duration_u = NULL,
+  log2steps = 20
 )
 }
 \value{
