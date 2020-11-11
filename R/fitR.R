@@ -43,7 +43,7 @@ function( X_guyk,
     Mprimesum_gg[]= 0
 
     #
-    satellite_igt = array(0, dim=c(nrow(data_list$satellite_iz),dim(data_list$X_guyk)[1],nrow(data_list$uy_tz)))
+    prob_satellite_igt = array(0, dim=c(nrow(data_list$satellite_iz),dim(data_list$X_guyk)[1],nrow(data_list$uy_tz)))
 
     # Check for issues
     Problem_tz = matrix( FALSE, nrow=nrow(data_list$uy_tz), ncol=3)
@@ -81,24 +81,29 @@ function( X_guyk,
         if( data_list$satellite_iz[iI,'t_release']==tI ){
           init = rep(0,dim(data_list$X_guyk)[1])
           init[satellite_iz[iI,'g_release']] = 1
-          satellite_igt[iI,,tI] = as.vector(Movement_gg %*% init)
+          prob_satellite_igt[iI,,tI] = as.vector(Movement_gg %*% init)
         }else if(satellite_iz[iI,'t_release']<tI & satellite_iz[iI,'t_recovery']>=tI){
-          satellite_igt[iI,,tI] = as.vector(Movement_gg %*% satellite_igt[iI,,tI-1])
+          prob_satellite_igt[iI,,tI] = as.vector(Movement_gg %*% prob_satellite_igt[iI,,tI-1])
         }
       }
     }
 
     #
-    NLL_satellite = 0
+    NLL_i = rep( NA, nrow(satellite_iz) )
     for( iI in 1:nrow(satellite_iz) ){
-      NLL_satellite = NLL_satellite - log(satellite_igt[iI,satellite_iz[iI,'g_recovery'],satellite_iz[iI,'t_recovery']])
+      NLL_i[iI] = -1 * log(prob_satellite_igt[iI,satellite_iz[iI,'g_recovery'],satellite_iz[iI,'t_recovery']])
     }
 
     #
-    NLL = NLL_satellite
-    if(any(Problem_tz)) NLL = 1000000
     if(what=="Msum_gg") return( expm(Mprimesum_gg) )
+    if(what=="Mprimesum_gg") return( Mprimesum_gg )
+    if(what=="final_D") return( Diffusion_gg )
+    if(what=="final_T") return( Taxis_gg )
+    if(what=="Preference_g") return( Preference_g )
+    if(what=="NLL_i") return( NLL_i )
 
+    NLL = sum(NLL_i)
+    if(any(Problem_tz)) NLL = 1000000
     return(NLL)
   }
 
@@ -115,9 +120,16 @@ function( X_guyk,
   parameter_estimates = nlminb( objective=Obj, start=param_vec, skeleton=param_list, data_list=data_list, control=list(trace=1) )
   parhat = Obj(parameter_estimates$par, what="params", skeleton=param_list, data_list=data_list)
   Msum_gg = Obj(parameter_estimates$par, what="Msum_gg", skeleton=param_list, data_list=data_list)
+  Mprimesum_gg = Obj(parameter_estimates$par, what="Mprimesum_gg", skeleton=param_list, data_list=data_list)
+  Diffusion_gg = Obj(parameter_estimates$par, what="final_D", skeleton=param_list, data_list=data_list)
+  Taxis_gg = Obj(parameter_estimates$par, what="final_T", skeleton=param_list, data_list=data_list)
+  Preference_g = Obj(parameter_estimates$par, what="Preference_g", skeleton=param_list, data_list=data_list)
+  NLL_i = Obj(parameter_estimates$par, what="NLL_i", skeleton=param_list, data_list=data_list)
 
   # return
-  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "Msum_gg"=Msum_gg, "data_list"=data_list)
+  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "Diffusion_gg"=Diffusion_gg,
+    "Msum_gg"=Msum_gg, "Mprimesum_gg"=Mprimesum_gg, "data_list"=data_list, "Taxis_gg"=Taxis_gg,
+    "Preference_g"=Preference_g, "NLL_i"=NLL_i)
   class(Return) = "fitR"
   return(Return)
 }

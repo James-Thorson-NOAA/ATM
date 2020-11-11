@@ -34,10 +34,11 @@ function( X_guyk,
 
   # Convert indexing from R to CPP convention
   data_list$satellite_iz = data_list$satellite_iz - 1
+  data_list$uy_tz = data_list$uy_tz - 1
 
   # Make parameters
   param_list = list(
-    "ln_sigma" = log(1),
+    "ln_sigma" = log(100),
     "alpha_logit_ratio_k" = 0.1 * rnorm(dim(data_list$X_guyk)[4])
   )
 
@@ -55,23 +56,17 @@ function( X_guyk,
   # Build object
   dyn.load( paste0(compile_dir,"/",TMB::dynlib(cpp_version)) ) # random=Random,
   Obj = TMB::MakeADFun( data=data_list, parameters=param_list, hessian=FALSE, map=map, DLL=cpp_version )  #
-
-  if( FALSE ){
-    Report = Obj$report()
-    image(Report$Taxis_gg)
-    image(Report$Diffusion_gg)
-    summary(as.vector(Report$Diffusion_gg))
-  }
+  Report = Obj$report()
 
   # Optimize
-  parameter_estimates = TMBhelper::fit_tmb( Obj, ..., control=list(trace=1) )
+  parameter_estimates = TMBhelper::fit_tmb( Obj, control=list(trace=1), ... )
 
   # Extract stuff
-  Report = Obj$report()
-  parhat = Obj$env$parList()
+  Report = Obj$report( parameter_estimates$par )
+  parhat = Obj$env$parList( parameter_estimates$par )
 
   # return
-  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "data_list"=data_list)
+  Return = list("parameter_estimates"=parameter_estimates, "parhat"=parhat, "data_list"=data_list. "Report"=Report)
   class(Return) = "fitTMB"
   return(Return)
 }
