@@ -35,8 +35,8 @@ function( X_guyk,
 
   # Make parameters
   param_list = list(
-    "ln_sigma" = log(100),
-    "alpha_logit_ratio_k" = 0 * rnorm(dim(data_list$X_guyk)[4])
+    "ln_sigma" = log(4),
+    "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4])
   )
 
   # Which map

@@ -9,7 +9,7 @@ matexp <-
 function( mat_gg, log2steps=Inf ){
 
   # Make sparse
-  if( log2steps == Inf ){
+  if( (log2steps <=0 ) || (log2steps > 100) ){
     return( Matrix::expm(mat_gg) )
   }else{
     mat_gg = diag(nrow(mat_gg)) + mat_gg / (2^log2steps)
