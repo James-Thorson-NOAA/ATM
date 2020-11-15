@@ -11,15 +11,16 @@ make_data <-
 function( X_guyk,
   loc_gz,
   #t_uy,
-  uy_tz,
-  satellite_iz,
-  survey_jz,
+  uy_tz = NULL,
+  satellite_iz = NULL,
+  survey_jz = NULL,
+  duration_u = NULL,
   cpp_version = "R",
-  duration_u,
   log2steps = 20 ){
 
   # Check for issues
   if( !is.na(log2steps) && abs(log2steps)==Inf ) stop("`log2steps` cannot be Inf")
+  if( any(is.na(X_guyk)) ) stop("`X_guyk` includes NA values; please fix")
 
   # Get dimensions
   n_g = dim(X_guyk)[1]

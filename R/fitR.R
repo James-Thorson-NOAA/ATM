@@ -11,7 +11,7 @@ fitR <-
 function( X_guyk,
   loc_gz,
   #t_uy,
-  uy_tz,
+  uy_tz = NULL,
   satellite_iz = NULL,
   survey_jz = NULL,
   #cpp_version = FishStatsUtils::get_latest_version(package="ATM"),

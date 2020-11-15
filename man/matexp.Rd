@@ -4,7 +4,7 @@
 \alias{matexp}
 \title{Matrix exponential and Euler approximation}
 \usage{
-matexp(mat_gg, log2steps = Inf)
+matexp(mat_gg, log2steps = 0)
 }
 \description{
 \code{matexp} implements the matrix exponential and/or sparse Euler approximation

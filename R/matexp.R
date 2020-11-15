@@ -6,7 +6,7 @@
 #' @author James Thorson
 #' @export
 matexp <-
-function( mat_gg, log2steps=Inf ){
+function( mat_gg, log2steps=0 ){
 
   # Make sparse
   if( (log2steps <=0 ) || (log2steps > 100) ){
