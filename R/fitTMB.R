@@ -20,6 +20,7 @@ function( X_guyk,
   run_dir = getwd(),
   compile_dir = run_dir,
   log2steps = 20,
+  sigma2 = 4^2,
   ... ){
 
   # Build data
@@ -35,7 +36,7 @@ function( X_guyk,
 
   # Make parameters
   param_list = list(
-    "ln_sigma" = log(4),
+    "ln_sigma" = log(sqrt(sigma2)),
     "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4])
   )
 

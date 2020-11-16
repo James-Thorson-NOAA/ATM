@@ -62,7 +62,7 @@ function( X_guyk,
     data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
       "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg, "log2steps"=log2steps )
   }
-  if( cpp_version %in% c("ATM_v2_0_0") ){
+  if( cpp_version %in% c("ATM_v0_9_0") ){
     data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
       "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Asparse_gg, "log2steps"=log2steps,
       "A_ij"=cbind(Asparse_gg@i,Asparse_gg@j) )

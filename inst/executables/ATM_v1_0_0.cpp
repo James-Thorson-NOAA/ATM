@@ -79,11 +79,14 @@ Type objective_function<Type>::operator() ()
   matrix<Type> Diffusion_gg( n_g, n_g );
   matrix<Type> Taxis_gg( n_g, n_g );
   matrix<Type> Mprime_gg( n_g, n_g );
+  array<Type> Mprime_ggt( n_g, n_g, n_t );
   matrix<Type> Mprimesum_gg( n_g, n_g );
   matrix<Type> Movement_gg( n_g, n_g );
-  vector<Type> Preference_g( n_g );
+  matrix<Type> Preference_gt( n_g, n_t );
   vector<Type> init_g( n_g );
+  matrix<Type> Msum_gg( n_g, n_g );
   Mprimesum_gg.setZero();
+  Preference_gt.setZero();
 
   // Loop through times
   for( int t=0; t<n_t; t++ ){
@@ -92,14 +95,13 @@ Type objective_function<Type>::operator() ()
     Diffusion_gg = subtract_colsum_from_diagonal( n_g, Diffusion_gg );
 
     // Advection-rate matrix
-    Preference_g.setZero();
     for( int g=0; g<n_g; g++ ){
     for( int k=0; k<n_k; k++ ){
-      Preference_g(g) += X_guyk(g,uy_tz(t,0),uy_tz(t,1),k) * alpha_k(k);
+      Preference_gt(g,t) += X_guyk(g,uy_tz(t,0),uy_tz(t,1),k) * alpha_k(k);
     }}
     for( int g1=0; g1<n_g; g1++ ){
     for( int g2=0; g2<n_g; g2++ ){
-      Taxis_gg(g1,g2) = A_gg(g1,g2) * (Preference_g(g1) - Preference_g(g2));
+      Taxis_gg(g1,g2) = A_gg(g1,g2) * (Preference_gt(g1,t) - Preference_gt(g2,t));
     }}
     Taxis_gg = subtract_colsum_from_diagonal( n_g, Taxis_gg );
 
@@ -107,6 +109,10 @@ Type objective_function<Type>::operator() ()
     Mprime_gg = Diffusion_gg + Taxis_gg;
     Mprimesum_gg += Mprime_gg;
     Movement_gg = matexp( n_g, log2steps, Mprime_gg );
+    for( int g1=0; g1<n_g; g1++ ){
+    for( int g2=0; g2<n_g; g2++ ){
+      Mprime_ggt(g1,g2,t) = Mprime_gg(g1,g2);
+    }}
 
     // Apply to satellite tags
     // TODO:  Explore logspace_sum for numerical stability
@@ -134,17 +140,36 @@ Type objective_function<Type>::operator() ()
   }
   jnll = sum(nll_i);
 
+  // Calculate annualized movement
+  array<Type> Mannual_ggt( n_g, n_g, n_t );
+  for( int t1=0; t1<n_t; t1++ ){
+    Mprime_gg.setZero();
+    for( int t2=t1; (t2<n_t) & (t2<(t1+n_u)); t2++ ){
+    for( int g1=0; g1<n_g; g1++ ){
+    for( int g2=0; g2<n_g; g2++ ){
+      Mprime_gg(g1,g2) = Mprime_ggt(g1,g2,t2);
+    }}}
+    Mprime_gg = matexp( n_g, log2steps, Mprime_gg );
+    for( int g1=0; g1<n_g; g1++ ){
+    for( int g2=0; g2<n_g; g2++ ){
+      Mannual_ggt(g1,g2,t1) = Mprime_gg(g1,g2);
+    }}
+  }
+  Msum_gg = matexp( n_g, log2steps, Mprimesum_gg );
+
   REPORT( sigma2 );
   REPORT( alpha_k );
   REPORT( Diffusion_gg );
   REPORT( Taxis_gg );
-  REPORT( Mprime_gg );
+  REPORT( Mprime_ggt );
   REPORT( Movement_gg );
   REPORT( Mprimesum_gg );
+  REPORT( Mannual_ggt );
+  REPORT( Msum_gg );
   //REPORT( logprob_satellite_igt );
   REPORT( prob_satellite_igt );
   REPORT( jnll );
-  REPORT( Preference_g );
+  REPORT( Preference_gt );
   REPORT( nll_i );
 
   return jnll;
