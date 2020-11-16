@@ -45,7 +45,8 @@ function( X_guyk,
     if(what=="params") return(list("alpha"=alpha, "sigma2"=sigma2))
 
     # Initiatize cumulator
-    Mprime_ggt = array(NA, dim=c(dim(data_list$A_gg),nrow(data_list$uy_tz)) )
+    Mprime_ggt = array( NA, dim=c(dim(data_list$A_gg),nrow(data_list$uy_tz)) )
+    Preference_gt = array( NA, dim=c(dim(data_list$A_gg)[1],nrow(data_list$uy_tz)) )
 
     #
     prob_satellite_igt = array(0, dim=c(nrow(data_list$satellite_iz),dim(data_list$X_guyk)[1],nrow(data_list$uy_tz)))
@@ -60,8 +61,8 @@ function( X_guyk,
       diag(Diffusion_gg) = -colSums(Diffusion_gg) ## Mass conservation
 
       # Advection-rate matrix
-      Preference_g = as.vector( X_guyk[,data_list$uy_tz[tI,'u'],data_list$uy_tz[tI,'y'],] %*% alpha )
-      Taxis_gg = data_list$A_gg * outer( Preference_g, Preference_g, FUN=function(a,b)a-b )
+      Preference_gt[,tI] = as.vector( X_guyk[,data_list$uy_tz[tI,'u'],data_list$uy_tz[tI,'y'],] %*% alpha )
+      Taxis_gg = data_list$A_gg * outer( Preference_gt[,tI], Preference_gt[,tI], FUN=function(a,b)a-b )
       diag(Taxis_gg) = -colSums(Taxis_gg) ## Mass conservation
 
       # Movement-rate matrix
@@ -104,7 +105,7 @@ function( X_guyk,
     if(what=="Mprime_ggt") return( Mprime_ggt )
     if(what=="final_D") return( Diffusion_gg )
     if(what=="final_T") return( Taxis_gg )
-    if(what=="Preference_g") return( Preference_g )
+    if(what=="Preference_gt") return( Preference_gt )
     if(what=="NLL_i") return( NLL_i )
     if(what=="Mannual_ggt"){
       Mannual_ggt = array(NA, dim=dim(Mprime_ggt) )
@@ -140,12 +141,12 @@ function( X_guyk,
   class(Return) = "fitR"
   Return$parhat = Obj(parameter_estimates$par, what="params", skeleton=param_list, data_list=data_list)
   Return$Msum_gg = Obj(parameter_estimates$par, what="Msum_gg", skeleton=param_list, data_list=data_list)
-  Return$Mprime_ggt = Obj(parameter_estimates$par, what="Mprime_ggt", skeleton=param_list, data_list=data_list)
   Return$Mannual_ggt = Obj(parameter_estimates$par, what="Mannual_ggt", skeleton=param_list, data_list=data_list)
+  Return$Preference_gt = Obj(parameter_estimates$par, what="Preference_gt", skeleton=param_list, data_list=data_list)
+  #Return$Mprime_ggt = Obj(parameter_estimates$par, what="Mprime_ggt", skeleton=param_list, data_list=data_list)
   #Return$Mprimesum_gg = Obj(parameter_estimates$par, what="Mprimesum_gg", skeleton=param_list, data_list=data_list)
   #Return$Diffusion_gg = Obj(parameter_estimates$par, what="final_D", skeleton=param_list, data_list=data_list)
   #Return$Taxis_gg = Obj(parameter_estimates$par, what="final_T", skeleton=param_list, data_list=data_list)
-  #Return$Preference_g = Obj(parameter_estimates$par, what="Preference_g", skeleton=param_list, data_list=data_list)
   #Return$NLL_i = Obj(parameter_estimates$par, what="NLL_i", skeleton=param_list, data_list=data_list)
 
   # return
