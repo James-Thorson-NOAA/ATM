@@ -16,7 +16,8 @@ function( X_guyk,
   survey_jz = NULL,
   #cpp_version = FishStatsUtils::get_latest_version(package="ATM"),
   duration_u = NULL,
-  log2steps = 20 ){
+  log2steps = 20,
+  sigma2 = 4^2 ){
 
   #
   start_time = Sys.time()
@@ -44,8 +45,7 @@ function( X_guyk,
     if(what=="params") return(list("alpha"=alpha, "sigma2"=sigma2))
 
     # Initiatize cumulator
-    Mprimesum_gg = data_list$A_gg
-    Mprimesum_gg[]= 0
+    Mprime_ggt = array(NA, dim=c(dim(data_list$A_gg),nrow(data_list$uy_tz)) )
 
     #
     prob_satellite_igt = array(0, dim=c(nrow(data_list$satellite_iz),dim(data_list$X_guyk)[1],nrow(data_list$uy_tz)))
@@ -65,11 +65,10 @@ function( X_guyk,
       diag(Taxis_gg) = -colSums(Taxis_gg) ## Mass conservation
 
       # Movement-rate matrix
-      Mprime_gg = Diffusion_gg + Taxis_gg
-      Mprimesum_gg = Mprimesum_gg + Mprime_gg
+      Mprime_ggt[,,tI] = Diffusion_gg + Taxis_gg
 
       # Movement probability matrix
-      Movement_gg = matexp(Mprime_gg, log2steps=data_list$log2steps)
+      Movement_gg = matexp(Mprime_ggt[,,tI], log2steps=data_list$log2steps)
 
       # Check
       #assign(x="par", value=par, envir=.GlobalEnv)
@@ -100,12 +99,23 @@ function( X_guyk,
     }
 
     #
-    if(what=="Msum_gg") return( expm(Mprimesum_gg) )
-    if(what=="Mprimesum_gg") return( Mprimesum_gg )
+    if(what=="Msum_gg") return( expm(apply(Mprime_ggt,MARGIN=1:2,FUN=sum)) )
+    if(what=="Mprimesum_gg") return( apply(Mprime_ggt,MARGIN=1:2,FUN=sum) )
+    if(what=="Mprime_ggt") return( Mprime_ggt )
     if(what=="final_D") return( Diffusion_gg )
     if(what=="final_T") return( Taxis_gg )
     if(what=="Preference_g") return( Preference_g )
     if(what=="NLL_i") return( NLL_i )
+    if(what=="Mannual_ggt"){
+      Mannual_ggt = array(NA, dim=dim(Mprime_ggt) )
+      for( tI in 1:nrow(data_list$uy_tz) ){
+        t_set = tI + 1:dim(X_guyk)[2] - 1
+        if( all(t_set <= nrow(data_list$uy_tz)) ){
+          Mannual_ggt[,,tI] = matrix(expm(apply(Mprime_ggt[,,t_set,drop=FALSE],MARGIN=1:2,FUN=sum)))
+        }
+      }
+      return( Mannual_ggt )
+    }
 
     NLL = sum(NLL_i)
     if(any(Problem_tz)) NLL = 1000000
@@ -113,7 +123,8 @@ function( X_guyk,
   }
 
   # Make parameter list
-  param_list = list( "ln_sigma"=log(4),
+  if(missing(sigma2) || is.na(sigma2)) sigma2 = 4^2
+  param_list = list( "ln_sigma"=log(sqrt(sigma2)),
     "alpha_logit_ratio"=0.1*rnorm(dim(data_list$X_guyk)[4]) )
 
   # Compress to vector
@@ -129,6 +140,8 @@ function( X_guyk,
   class(Return) = "fitR"
   Return$parhat = Obj(parameter_estimates$par, what="params", skeleton=param_list, data_list=data_list)
   Return$Msum_gg = Obj(parameter_estimates$par, what="Msum_gg", skeleton=param_list, data_list=data_list)
+  Return$Mprime_ggt = Obj(parameter_estimates$par, what="Mprime_ggt", skeleton=param_list, data_list=data_list)
+  Return$Mannual_ggt = Obj(parameter_estimates$par, what="Mannual_ggt", skeleton=param_list, data_list=data_list)
   #Return$Mprimesum_gg = Obj(parameter_estimates$par, what="Mprimesum_gg", skeleton=param_list, data_list=data_list)
   #Return$Diffusion_gg = Obj(parameter_estimates$par, what="final_D", skeleton=param_list, data_list=data_list)
   #Return$Taxis_gg = Obj(parameter_estimates$par, what="final_T", skeleton=param_list, data_list=data_list)
