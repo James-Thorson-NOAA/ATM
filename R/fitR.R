@@ -9,7 +9,7 @@
 #' @export
 fitR <-
 function( X_guyk,
-  loc_gz,
+  coords_gz,
   #t_uy,
   uy_tz = NULL,
   satellite_iz = NULL,
@@ -24,7 +24,7 @@ function( X_guyk,
 
   # Build data
   data_list = make_data( X_guyk = X_guyk,
-    loc_gz = loc_gz,
+    coords_gz = coords_gz,
     uy_tz = uy_tz,
     satellite_iz = satellite_iz,
     survey_jz = survey_jz,

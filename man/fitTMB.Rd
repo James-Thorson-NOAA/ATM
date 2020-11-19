@@ -4,20 +4,12 @@
 \alias{fitTMB}
 \title{Fit ATM model in TMB}
 \usage{
-fitTMB(
-  X_guyk,
-  loc_gz,
-  uy_tz,
-  satellite_iz = NULL,
-  survey_jz = NULL,
-  duration_u = NULL,
+fitTMB(X_guyk, coords_gz, uy_tz = NULL, satellite_iz = NULL,
+  survey_jz = NULL, duration_u = NULL,
   cpp_version = FishStatsUtils::get_latest_version(package = "ATM"),
   tmb_dir = system.file("executables", package = "ATM"),
-  run_dir = getwd(),
-  compile_dir = run_dir,
-  log2steps = 20,
-  ...
-)
+  run_dir = getwd(), compile_dir = run_dir, log2steps = 20,
+  sigma2 = 4^2, spde_aniso = NULL, ...)
 }
 \value{
 Object of class \code{fitTMB}, containing parameter estimates and predicted time-integrated movement
