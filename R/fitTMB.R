@@ -9,21 +9,23 @@
 #' @export
 fitTMB <-
 function( X_guyk,
-  coords_gz,
-  #t_uy,
-  uy_tz = NULL,
-  satellite_iz = NULL,
-  survey_jz = NULL,
-  duration_u = NULL,
-  cpp_version = FishStatsUtils::get_latest_version(package="ATM"),
-  tmb_dir = system.file("executables",package="ATM"),
-  run_dir = getwd(),
-  compile_dir = run_dir,
-  log2steps = 20,
-  sigma2 = 4^2,
-  spde_aniso = NULL,
-  use_REML = TRUE,
-  ... ){
+      coords_gz,
+      #t_uy,
+      uy_tz = NULL,
+      satellite_iz = NULL,
+      survey_jz = NULL,
+      duration_u = NULL,
+      cpp_version = FishStatsUtils::get_latest_version(package="ATM"),
+      tmb_dir = system.file("executables",package="ATM"),
+      run_dir = getwd(),
+      compile_dir = run_dir,
+      log2steps = 20,
+      sigma2 = 4^2,
+      spde_aniso = NULL,
+      use_REML = TRUE,
+      build_model = TRUE,
+      run_model = TRUE,
+      ... ){
 
   # Build data
   if( FALSE ){
@@ -98,13 +100,19 @@ function( X_guyk,
   }
 
   #
-  Random = c("Omegainput_s", "Epsiloninput_st", "ln_d_st")
+  random = c("Omegainput_s", "Epsiloninput_st", "ln_d_st")
   if( use_REML==TRUE ){
-    Random = union( Random, c("Beta_t","ln_phi","alpha_logit_ratio_k") )
+    random = union( random, c("Beta_t","ln_phi","alpha_logit_ratio_k") )
   }
-  Random = Random[which(Random %in% names(param_list))]
-  if( length(Random)==0) Random = NULL
-  #Random = NULL
+  random = random[which(random %in% names(param_list))]
+  if( length(random)==0) random = NULL
+  #random = NULL
+
+  # Return inputs
+  Return = list( "data_list"=data_list, "param_list"=param_list, "random"=random )
+  if( build_model == FALSE ){
+    return(Return)
+  }
 
   # Compile
   # dyn.unload( paste0(compile_dir,"/",TMB::dynlib(TMB:::getUserDLL())) )
@@ -115,22 +123,23 @@ function( X_guyk,
   TMB::compile( paste0(cpp_version,".cpp"), CPPFLAGS="-Wno-ignored-attributes" )
 
   # Build object
-  dyn.load( paste0(compile_dir,"/",TMB::dynlib(cpp_version)) ) # random=Random,
-  Obj = TMB::MakeADFun( data=data_list, parameters=param_list, hessian=FALSE, map=map, random=Random, DLL=cpp_version )  #
+  dyn.load( paste0(compile_dir,"/",TMB::dynlib(cpp_version)) ) # random=random,
+  Obj = TMB::MakeADFun( data=data_list, parameters=param_list, hessian=FALSE, map=map, random=random, DLL=cpp_version )  #
   # Report = Obj$report()
 
   # Print number of parameters
   ThorsonUtilities::list_parameters( Obj )
 
   # Optimize
-  Obj$env$beSilent()
-  parameter_estimates = TMBhelper::fit_tmb( Obj, control=list(trace=1), ... )
+  if( run_model == TRUE ){
+    Obj$env$beSilent()
+    Return$parameter_estimates = TMBhelper::fit_tmb( Obj, control=list(trace=1), ... )
+    Return$parhat = Obj$env$parList( )
+  }
 
   # Extract stuff
-  Return = list("parameter_estimates"=parameter_estimates, "data_list"=data_list)
   class(Return) = "fitTMB"
   Return$Report = Obj$report( )
-  Return$parhat = Obj$env$parList( parameter_estimates$par )
 
   # return
   return(Return)
