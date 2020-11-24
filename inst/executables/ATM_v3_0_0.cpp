@@ -15,6 +15,18 @@ bool isNA(Type x){
   return R_IsNA(asDouble(x));
 }
 
+// Simulate from tweedie
+// Adapted from tweedie::rtweedie function in R
+template<class Type>
+Type rtweedie( Type mu, Type phi, Type power){
+  Type lambda = pow(mu, Type(2.0) - power) / (phi * (Type(2.0) - power));
+  Type alpha = (Type(2.0) - power) / (Type(1.0) - power);
+  Type gam = phi * (power - Type(1.0)) * pow(mu, power - Type(1.0));
+  Type N = rpois(lambda);
+  Type B = rgamma(-N * alpha, gam);   /// Using Shape-Scale parameterization
+  return B;
+}
+
 // Function to subtract diagonal by colSum as mass-balance
 template<class Type>
 matrix<Type> subtract_colsum_from_diagonal( int n_g, matrix<Type> mat_gg ){
@@ -226,16 +238,26 @@ Type objective_function<Type>::operator() ()
     Type logtau = log( 1.0 / (exp(ln_kappa) * sqrt(4.0*M_PI)) );
 
     // Log-likelihood from GMRF
+    array<Type> dtilda_st( n_s, n_t );
+    dtilda_st.col(0) = (ln_d_st.col(0) - log(dhat_st.col(0))) / exp(ln_sigma_epsilon0);
     nll_t(0) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon0) )( ln_d_st.col(0) - log(dhat_st.col(0)) );
     for( int t=1; t<n_t; t++ ){
+      dtilda_st.col(t) = (ln_d_st.col(t) - log(dhat_st.col(t))) / exp(ln_sigma_epsilon);
       nll_t(t) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon) )( ln_d_st.col(t) - log(dhat_st.col(t)) );
     }
+    REPORT( dtilda_st );
 
     // Log-likelihood for survey data
     Type phi = exp(ln_phi);
     Type power = 1.0 + invlogit( power_prime );
+    vector<Type> bhat_j( n_j );
     for( int j=0; j<n_j; j++ ){
-      nll_j(j) = -1 * dtweedie( b_j(j), exp(ln_d_st(g_j(j),t_j(j))), phi, power, true );
+      bhat_j(j) = exp(ln_d_st(g_j(j),t_j(j)));
+      nll_j(j) = -1 * dtweedie( b_j(j), bhat_j(j), phi, power, true );
+      SIMULATE{
+        b_j(j) = rtweedie( bhat_j(j), phi, power );   // Defined above
+      }
+      REPORT( bhat_j );
     }
   }
 
@@ -279,6 +301,10 @@ Type objective_function<Type>::operator() ()
   REPORT( nll_i );
   REPORT( nll_j );
   REPORT( nll_t);
+
+  SIMULATE{
+    REPORT( b_j );
+  }
 
   return jnll;
 }

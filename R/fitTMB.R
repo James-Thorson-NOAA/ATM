@@ -145,22 +145,22 @@ function( X_guyk,
 
   # Build object
   dyn.load( paste0(compile_dir,"/",TMB::dynlib(cpp_version)) ) # random=random,
-  Obj = TMB::MakeADFun( data=data_list, parameters=param_list, hessian=FALSE, map=map, random=random, DLL=cpp_version )  #
+  Return$Obj = TMB::MakeADFun( data=data_list, parameters=param_list, hessian=FALSE, map=map, random=random, DLL=cpp_version )  #
   # Report = Obj$report()
 
   # Print number of parameters
-  ThorsonUtilities::list_parameters( Obj )
+  ThorsonUtilities::list_parameters( Return$Obj )
 
   # Optimize
   if( run_model == TRUE ){
-    Obj$env$beSilent()
-    Return$parameter_estimates = TMBhelper::fit_tmb( Obj, control=list(trace=1), ... )
-    Return$parhat = Obj$env$parList( Return$parameter_estimates$par )
+    Return$Obj$env$beSilent()
+    Return$parameter_estimates = TMBhelper::fit_tmb( Return$Obj, control=list(trace=1), savedir=run_dir, ... )
+    Return$parhat = Return$Obj$env$parList( Return$parameter_estimates$par )
   }
 
   # Extract stuff
   class(Return) = "fitTMB"
-  Return$Report = Obj$report( )
+  Return$Report = Return$Obj$report( )
 
   # return
   return(Return)
@@ -216,3 +216,106 @@ predict.fitTMB <- function(x, newdata, origdata=NULL, ...)
     cat("`parameter_estimates` not available in `fitTMB`\n")
   }
 }
+
+#' Predict habitat preference
+#'
+#' @title Print parameter estimates
+#' @param x Output from \code{\link{fitTMB}}
+#' @param ... Not used
+#' @return NULL
+#' @method print fitTMB
+#' @export
+simulate.fitTMB <- function(x, random_seed=NULL, ...)
+{
+
+  # Check for loaded VAST
+  # Modified from TMB:::getUserDLL
+  dlls <- getLoadedDLLs()
+  isTMBdll <- function(dll) !is(try(getNativeSymbolInfo("MakeADFunObject",dll), TRUE), "try-error")
+  TMBdll <- sapply(dlls, isTMBdll)
+  if( sum(TMBdll)==0 ){
+    stop("ADM is not linked as a DLL, so `simulate_data` will not work.
+    Please re-run model (potentially from informative starting values to save time) to use `simulate_data`")
+  }else if(sum(TMBdll)>=2){
+    warning("ADM is linked to multiple DLLs. Please consider using dyn.unload() to unload
+    earlier ADM runs to avoid potentially ambiguous behavior when running `simulate_data`")
+  }
+
+  # Extract stuff
+  Obj = x$Obj
+
+  # Simulate
+  set.seed(random_seed)
+  Return = Obj$simulate( complete=TRUE )
+
+  # return stuff
+  return( Return )
+}
+
+#' Check residuals etc.
+#'
+#' \code{summary.fit_model} extracts commonly used quantities derived from a fitted VAST model
+#'
+#' \code{summary.fit_model} faciliates common queries for model output including:
+#'
+#' @return NULL
+#' @method summary fit_model
+#' @export
+summary.fitTMB <- function(x, what="residuals", n_samples=250,
+  working_dir=NULL, ...)
+{
+  ans = NULL
+
+  # Residuals
+  if( tolower(what) == "residuals" ){
+    # extract objects
+    Obj = x$Obj
+
+    b_jz = matrix(NA, nrow=length(x$data_list$b_j), ncol=n_samples)
+    message( "Sampling from the distribution of data conditional on estimated fixed and random effects" )
+    for( zI in 1:n_samples ){
+      if( zI%%max(1,floor(n_samples/10)) == 0 ){
+        message( "  Finished sample ", zI, " of ",n_samples )
+      }
+      b_jz[,zI] = Obj$simulate()$b_j
+    }
+    if( any(is.na(b_jz)) ){
+      stop("Check simulated residuals for NA values")
+    }
+
+    # Run DHARMa
+    dharmaRes = DHARMa::createDHARMa(simulatedResponse=b_jz, # + 1e-10*array(rnorm(prod(dim(b_iz))),dim=dim(b_iz)),
+      observedResponse=x$data_list$b_j,
+      fittedPredictedResponse=fit$Report$bhat_j,
+      integer=FALSE)
+
+    # Calculate probability-integral-transform (PIT) residuals
+    message( "Substituting probability-integral-transform (PIT) residuals for DHARMa-calculated residuals" )
+    prop_lessthan_j = apply( b_jz<outer(x$data_list$b_j,rep(1,n_samples)),
+      MARGIN=1,
+      FUN=mean )
+    prop_lessthanorequalto_j = apply( b_jz<=outer(x$data_list$b_j,rep(1,n_samples)),
+      MARGIN=1,
+      FUN=mean )
+    PIT_j = runif(min=prop_lessthan_j, max=prop_lessthanorequalto_j, n=length(prop_lessthan_j) )
+    # cbind( "Difference"=dharmaRes$scaledResiduals - PIT_i, "PIT"=PIT_i, "Original"=dharmaRes$scaledResiduals, "b_i"=x$data_list$b_i )
+    dharmaRes$scaledResiduals = PIT_j
+
+    # do plot
+    if( is.null(working_dir) ){
+      plot(dharmaRes, ...)
+    }else if(!is.na(working_dir) ){
+      png(file=paste0(working_dir,"quantile_residuals.png"), width=8, height=4, res=200, units='in')
+        plot(dharmaRes, ...)
+      dev.off()
+    }
+
+    # Return stuff
+    ans = dharmaRes
+    message( "Invisibly returning output from `DHARMa::createDHARMa`, e.g., to apply `plot.DHARMa` to this output")
+  }
+
+  # diagnostic plots
+  return(invisible(ans))
+}
+
