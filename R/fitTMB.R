@@ -25,6 +25,8 @@ function( X_guyk,
       use_REML = TRUE,
       build_model = TRUE,
       run_model = TRUE,
+      start_param_list = NULL,
+      constant_tail_probability = 1e-8,
       ... ){
 
   # Build data
@@ -48,7 +50,8 @@ function( X_guyk,
     duration_u = duration_u,
     cpp_version = cpp_version,
     log2steps = log2steps,
-    spde_aniso = spde_aniso
+    spde_aniso = spde_aniso,
+    constant_tail_probability = constant_tail_probability
   )
 
   # Make parameters
@@ -91,12 +94,30 @@ function( X_guyk,
     )
   }
 
+  # User supplied start values
+  if( !is.null(start_param_list) ){
+    if( all(sapply(start_param_list,length) == sapply(param_list,length)) ){
+      param_list = start_param_list
+    }else{
+      stop("Check `user_param_list` for issues")
+    }
+  }
+
   # Which map
   map = NULL
   if( "Beta_t" %in% names(param_list) ){
     Beta_t = 1:length(param_list$Beta_t) - 1
     Beta_t = ifelse( Beta_t %in% data_list$t_j, Beta_t, NA )
     map$Beta_t = factor(Beta_t)
+  }
+  if( length(data_list$b_j) == 0 ){
+    if("ln_H_input"%in%names(param_list)) map$ln_H_input = factor(c(NA,NA))
+    if("ln_kappa"%in%names(param_list)) map$ln_kappa = factor(NA)
+    if("ln_sigma_epsilon0"%in%names(param_list)) map$ln_sigma_epsilon0 = factor(NA)
+    if("ln_sigma_epsilon"%in%names(param_list)) map$ln_sigma_epsilon = factor(NA)
+    if("ln_phi"%in%names(param_list)) map$ln_phi = factor(NA)
+    if("power_prime"%in%names(param_list)) map$power_prime = factor(NA)
+    if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
   }
 
   #
@@ -134,7 +155,7 @@ function( X_guyk,
   if( run_model == TRUE ){
     Obj$env$beSilent()
     Return$parameter_estimates = TMBhelper::fit_tmb( Obj, control=list(trace=1), ... )
-    Return$parhat = Obj$env$parList( )
+    Return$parhat = Obj$env$parList( Return$parameter_estimates$par )
   }
 
   # Extract stuff
@@ -164,3 +185,34 @@ print.fitTMB <- function(x, ...)
   invisible(x$parameter_estimates)
 }
 
+#' Predict habitat preference
+#'
+#' @title Print parameter estimates
+#' @param x Output from \code{\link{fitTMB}}
+#' @param ... Not used
+#' @return NULL
+#' @method print fitTMB
+#' @export
+predict.fitTMB <- function(x, newdata, origdata=NULL, ...)
+{
+  if( !is.null(origdata) ){
+    for(cI in 1:ncol(newdata)){
+      if(is.factor(origdata[,cI])){
+        newdata[,cI] = factor(newdata[,cI], levels=levels(origdata[,cI]))
+      }
+    }
+  }
+  fulldata = rbind( newdata, origdata )
+
+  #cat("fitTMB(.) predict\n")
+  if( "parameter_estimates" %in% names(x) ){
+    #print( x$parameter_estimates )
+    new_matrix = model.matrix( update.formula(formula, ~.+1), data=fulldata )
+    alpha_k = c( 0, x$Report$alpha_k )
+    pred = ( new_matrix %*% alpha_k )[,1]
+    newpred = pred[1:nrow(newdata)]
+    return(newpred)
+  }else{
+    cat("`parameter_estimates` not available in `fitTMB`\n")
+  }
+}

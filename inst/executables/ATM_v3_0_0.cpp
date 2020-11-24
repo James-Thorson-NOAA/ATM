@@ -1,5 +1,14 @@
 #include <TMB.hpp>
 
+// Function to import R list for user-defined Options_vec and Options, packaged as list Options_list in TmbData
+//template<class Type>
+//struct options_list {
+//  Type constant_tail_probability;
+//  options_list(SEXP x){ // Constructor
+//    constant_tail_probability = Type(getListElement(x,"Options_vec"));
+//  }
+//};
+
 // Function for detecting NAs
 template<class Type>
 bool isNA(Type x){
@@ -47,8 +56,12 @@ Type objective_function<Type>::operator() ()
   using namespace Eigen;
   using namespace density;
 
+  // Options
+  //DATA_STRUCT( Options_list, options_list );
+
   // Data
   DATA_INTEGER( log2steps );
+  DATA_SCALAR( constant_tail_probability );
   DATA_ARRAY( X_guyk );
   DATA_IMATRIX( uy_tz );
   DATA_IMATRIX( satellite_iz );
@@ -95,6 +108,9 @@ Type objective_function<Type>::operator() ()
   vector<Type> nll_i( n_i );
   vector<Type> nll_j( n_j );
   vector<Type> nll_t( n_t );
+  nll_i.setZero();
+  nll_j.setZero();
+  nll_t.setZero();
 
   // Global variables
   array<Type> prob_satellite_igt( n_i, n_g, n_t );
@@ -112,6 +128,7 @@ Type objective_function<Type>::operator() ()
   Preference_gt.setZero();
 
   // Loop through times
+  //array<Type> logspaceadd_itgg( n_i, n_t, n_g, n_g );
   for( int t=0; t<n_t; t++ ){
     // Diffusion-rate matrix
     Diffusion_gg = sigma2 * A_gg;
@@ -138,20 +155,30 @@ Type objective_function<Type>::operator() ()
     }}
 
     // Apply to satellite tags
-    // TODO:  Explore logspace_sum for numerical stability
+    // TODO:  Explore logspace_add for numerical stability
     for( int i=0; i<n_i; i++ ){
       if( satellite_iz(i,2) == t ){
         for( int g=0; g<n_g; g++ ){
           prob_satellite_igt(i,g,t) = Movement_gg( g, satellite_iz(i,0) );
+          // Low tail probability inflation
+          prob_satellite_igt(i,g,t) = constant_tail_probability + (1.0 - n_g*constant_tail_probability) * prob_satellite_igt(i,g,t);
+          // Log-space calculations
           //logprob_satellite_igt(i,g,t) = log(Movement_gg( g, satellite_iz(i,0) ));
-        }
+       }
       }
       if( (satellite_iz(i,2)<t) & (satellite_iz(i,3)>=t) ){
-        for( int g1=0; g1<n_g; g1++ ){
         for( int g2=0; g2<n_g; g2++ ){
-          prob_satellite_igt(i,g2,t) += Movement_gg(g2,g1) * prob_satellite_igt(i,g1,t-1);
-          //logprob_satellite_igt(i,g2,t) = logspace_add( logprob_satellite_igt(i,g2,t), log(Movement_gg(g2,g1))+logprob_satellite_igt(i,g1,t-1) );
-        }}
+          for( int g1=0; g1<n_g; g1++ ){
+            prob_satellite_igt(i,g2,t) += Movement_gg(g2,g1) * prob_satellite_igt(i,g1,t-1);
+            // Log-space calculationss
+            //logspaceadd_itgg(i,t,g1,g2) = logspace_add( logprob_satellite_igt(i,g2,t), log(Movement_gg(g2,g1))+logprob_satellite_igt(i,g1,t-1) );
+            //logprob_satellite_igt(i,g2,t) = logspaceadd_itgg(i,t,g1,g2);
+          }
+          // Low tail probability inflation
+          prob_satellite_igt(i,g2,t) = constant_tail_probability + (1.0 - n_g*constant_tail_probability) * prob_satellite_igt(i,g2,t);
+          // Log-space calculationss
+          //logprob_satellite_igt(i,g2,t) = log(logprob_satellite_igt(i,g2,t));    // Very weird that this is needed, but appears to be !
+        }
       }
     }
   }
@@ -162,50 +189,54 @@ Type objective_function<Type>::operator() ()
     //nll_i(i) = -1 * logprob_satellite_igt( i, satellite_iz(i,1), satellite_iz(i,3) );
   }
 
-  // Assemble predicted density
-  array<Type> dhat_st( n_s, n_t );
-  dhat_st.setZero();
-  for( int t=0; t<n_t; t++ ){
-    if( t==0 ){
-      for( int g=0; g<n_g; g++ ){
-        dhat_st(g,t) = exp(Beta_t(t));
+  // Survey data -- Skip if survey data not present
+  if( n_j > 0 ){
+    // Anisotropy elements
+    matrix<Type> H(2,2);
+    H(0,0) = exp(ln_H_input(0));
+    H(1,0) = ln_H_input(1);
+    H(0,1) = ln_H_input(1);
+    H(1,1) = (1.0+ln_H_input(1)*ln_H_input(1)) / exp(ln_H_input(0));
+
+    // Assemble predicted density
+    array<Type> dhat_st( n_s, n_t );
+    dhat_st.setZero();
+    for( int t=0; t<n_t; t++ ){
+      if( t==0 ){
+        for( int g=0; g<n_g; g++ ){
+          dhat_st(g,t) = exp(Beta_t(t));
+        }
+      }else{
+        for( int g1=0; g1<n_g; g1++ ){
+        for( int g2=0; g2<n_g; g2++ ){
+          dhat_st(g2,t) += exp(Beta_t(t)) * Movement_gg(g2,g1) * exp(ln_d_st(g1,t-1));
+        }}
       }
-    }else{
-      for( int g1=0; g1<n_g; g1++ ){
-      for( int g2=0; g2<n_g; g2++ ){
-        dhat_st(g2,t) += exp(Beta_t(t)) * Movement_gg(g2,g1) * exp(ln_d_st(g1,t-1));
-      }}
+      for( int s_extra=n_g; s_extra<n_s; s_extra++ ){
+        dhat_st(s_extra,t) = exp(Beta_t(t));
+      }
     }
-    for( int s_extra=n_g; s_extra<n_s; s_extra++ ){
-      dhat_st(s_extra,t) = exp(Beta_t(t));
+    REPORT( dhat_st );
+
+    // GMRF precision
+    Eigen::SparseMatrix<Type> Q( n_s, n_s );
+    GMRF_t<Type> gmrf_Q;
+    Q = Q_spde(spde_aniso, exp(ln_kappa), H);
+    gmrf_Q = GMRF( Q );
+    Type logtau = log( 1.0 / (exp(ln_kappa) * sqrt(4.0*M_PI)) );
+
+    // Log-likelihood from GMRF
+    nll_t(0) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon0) )( ln_d_st.col(0) - log(dhat_st.col(0)) );
+    for( int t=1; t<n_t; t++ ){
+      nll_t(t) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon) )( ln_d_st.col(t) - log(dhat_st.col(t)) );
     }
-  }
 
-  // Anisotropy elements
-  matrix<Type> H(2,2);
-  H(0,0) = exp(ln_H_input(0));
-  H(1,0) = ln_H_input(1);
-  H(0,1) = ln_H_input(1);
-  H(1,1) = (1.0+ln_H_input(1)*ln_H_input(1)) / exp(ln_H_input(0));
-
-  // Survey data
-  Eigen::SparseMatrix<Type> Q( n_s, n_s );
-  GMRF_t<Type> gmrf_Q;
-  Q = Q_spde(spde_aniso, exp(ln_kappa), H);
-  gmrf_Q = GMRF( Q );
-  Type logtau = log( 1.0 / (exp(ln_kappa) * sqrt(4.0*M_PI)) );
-
-  // Log-likelihood from GMRF
-  nll_t(0) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon0) )( ln_d_st.col(0) - log(dhat_st.col(0)) );
-  for( int t=1; t<n_t; t++ ){
-    nll_t(t) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon) )( ln_d_st.col(t) - log(dhat_st.col(t)) );
-  }
-
-  // Log-likelihood for survey data
-  Type phi = exp(ln_phi);
-  Type power = 1.0 + invlogit( power_prime );
-  for( int j=0; j<n_j; j++ ){
-    nll_j(j) = -1 * dtweedie( b_j(j), exp(ln_d_st(g_j(j),t_j(j))), phi, power, true );
+    // Log-likelihood for survey data
+    Type phi = exp(ln_phi);
+    Type power = 1.0 + invlogit( power_prime );
+    for( int j=0; j<n_j; j++ ){
+      nll_j(j) = -1 * dtweedie( b_j(j), exp(ln_d_st(g_j(j),t_j(j))), phi, power, true );
+    }
   }
 
   // Calculate annualized movement
@@ -241,9 +272,9 @@ Type objective_function<Type>::operator() ()
   REPORT( Mannual_ggt );
   REPORT( Msum_gg );
   //REPORT( logprob_satellite_igt );
+  //REPORT( logspaceadd_itgg );
   REPORT( prob_satellite_igt );
   REPORT( Preference_gt );
-  REPORT( dhat_st );
   REPORT( jnll );
   REPORT( nll_i );
   REPORT( nll_j );

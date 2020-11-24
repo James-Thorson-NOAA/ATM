@@ -17,7 +17,8 @@ function( X_guyk,
   duration_u = NULL,
   cpp_version = "R",
   log2steps = 20,
-  spde_aniso = NULL ){
+  spde_aniso = NULL,
+  constant_tail_probability = 1e-8 ){
 
   # Check for issues
   if( !is.na(log2steps) && abs(log2steps)==Inf ) stop("`log2steps` cannot be Inf")
@@ -37,6 +38,10 @@ function( X_guyk,
   }
   if(missing(satellite_iz) | is.null(satellite_iz)){
     satellite_iz = matrix(NA, nrow=0, ncol=4, dimnames=list(NULL,c("g_release","g_recovery","t_release","t_recovery")) )
+  }else{
+    if( any(satellite_iz[,'t_recovery'] < satellite_iz[,'t_release']) ){
+      stop("Check for problem in satellite tags")
+    }
   }
   if(missing(duration_u) | is.null(duration_u)){
     duration_u = 1 / n_u
@@ -69,8 +74,9 @@ function( X_guyk,
       "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg, "log2steps"=log2steps )
   }
   if( cpp_version %in% c("ATM_v3_0_0","ATM_v2_0_0") ){
-    data_list = list( "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
-      "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg, "log2steps"=log2steps,
+    data_list = list( "log2steps"=log2steps, "constant_tail_probability"=constant_tail_probability,
+      "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
+      "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg,
       "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
   }
 
