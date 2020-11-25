@@ -26,6 +26,7 @@ function( X_guyk,
       build_model = TRUE,
       run_model = TRUE,
       start_param_list = NULL,
+      alpha_ratio_bounds = 1,
       constant_tail_probability = 1e-8,
       ... ){
 
@@ -51,7 +52,8 @@ function( X_guyk,
     cpp_version = cpp_version,
     log2steps = log2steps,
     spde_aniso = spde_aniso,
-    constant_tail_probability = constant_tail_probability
+    constant_tail_probability = constant_tail_probability,
+    alpha_ratio_bounds = alpha_ratio_bounds
   )
 
   # Make parameters

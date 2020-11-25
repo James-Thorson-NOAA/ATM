@@ -74,6 +74,7 @@ Type objective_function<Type>::operator() ()
   // Data
   DATA_INTEGER( log2steps );
   DATA_SCALAR( constant_tail_probability );
+  DATA_SCALAR( alpha_ratio_bounds );
   DATA_ARRAY( X_guyk );
   DATA_IMATRIX( uy_tz );
   DATA_IMATRIX( satellite_iz );
@@ -113,7 +114,7 @@ Type objective_function<Type>::operator() ()
   // Transform inputs
   Type sigma2 = exp( 2.0 * ln_sigma );
   vector<Type> alpha_k( n_k );
-  alpha_k = sigma2 * (2.0 * invlogit(alpha_logit_ratio_k) - 1.0);
+  alpha_k = alpha_ratio_bounds * sigma2 * (2.0 * invlogit(alpha_logit_ratio_k) - 1.0);
 
   // Global variables
   Type jnll = 0;
