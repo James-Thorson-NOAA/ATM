@@ -4,9 +4,16 @@
 \alias{fitR}
 \title{Fit ATM model in R}
 \usage{
-fitR(X_guyk, coords_gz, uy_tz = NULL, satellite_iz = NULL,
-  survey_jz = NULL, duration_u = NULL, log2steps = 20,
-  sigma2 = 4^2)
+fitR(
+  X_guyk,
+  coords_gz,
+  uy_tz = NULL,
+  satellite_iz = NULL,
+  survey_jz = NULL,
+  duration_u = NULL,
+  log2steps = 20,
+  sigma2 = 4^2
+)
 }
 \value{
 Object of class \code{fitR}, containing parameter estimates and predicted time-integrated movement

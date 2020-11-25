@@ -193,7 +193,7 @@ print.fitTMB <- function(x, ...)
 #' @param x Output from \code{\link{fitTMB}}
 #' @param ... Not used
 #' @return NULL
-#' @method print fitTMB
+#' @method predict fitTMB
 #' @export
 predict.fitTMB <- function(x, newdata, origdata=NULL, ...)
 {
@@ -225,7 +225,7 @@ predict.fitTMB <- function(x, newdata, origdata=NULL, ...)
 #' @param x Output from \code{\link{fitTMB}}
 #' @param ... Not used
 #' @return NULL
-#' @method print fitTMB
+#' @method simulate fitTMB
 #' @export
 simulate.fitTMB <- function(x, random_seed=NULL, ...)
 {
@@ -256,12 +256,12 @@ simulate.fitTMB <- function(x, random_seed=NULL, ...)
 
 #' Check residuals etc.
 #'
-#' \code{summary.fit_model} extracts commonly used quantities derived from a fitted VAST model
+#' \code{summary.fitTMB} extracts commonly used quantities derived from a fitted VAST model
 #'
-#' \code{summary.fit_model} faciliates common queries for model output including:
+#' \code{summary.fitTMB} faciliates common queries for model output including:
 #'
 #' @return NULL
-#' @method summary fit_model
+#' @method summary fitTMB
 #' @export
 summary.fitTMB <- function(x, what="residuals", n_samples=250,
   working_dir=NULL, ...)

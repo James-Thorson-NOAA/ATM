@@ -114,7 +114,11 @@ Type objective_function<Type>::operator() ()
   // Transform inputs
   Type sigma2 = exp( 2.0 * ln_sigma );
   vector<Type> alpha_k( n_k );
-  alpha_k = alpha_ratio_bounds * sigma2 * (2.0 * invlogit(alpha_logit_ratio_k) - 1.0);
+  if( alpha_ratio_bounds > 0 ){
+    alpha_k = alpha_ratio_bounds * sigma2 * (2.0 * invlogit(alpha_logit_ratio_k) - 1.0);
+  }else{
+    alpha_k = alpha_logit_ratio_k;
+  }
 
   // Global variables
   Type jnll = 0;

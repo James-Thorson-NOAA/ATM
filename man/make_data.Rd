@@ -4,9 +4,19 @@
 \alias{make_data}
 \title{Build data input for ATM model}
 \usage{
-make_data(X_guyk, coords_gz, uy_tz = NULL, satellite_iz = NULL,
-  survey_jz = NULL, duration_u = NULL, cpp_version = "R",
-  log2steps = 20, spde_aniso = NULL)
+make_data(
+  X_guyk,
+  coords_gz,
+  uy_tz = NULL,
+  satellite_iz = NULL,
+  survey_jz = NULL,
+  duration_u = NULL,
+  cpp_version = "R",
+  log2steps = 20,
+  spde_aniso = NULL,
+  alpha_ratio_bounds = 1,
+  constant_tail_probability = 1e-08
+)
 }
 \value{
 Object of class \code{make_data}, containing inputs to function \code{\link{make_model}}
