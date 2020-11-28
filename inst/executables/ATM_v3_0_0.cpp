@@ -1,11 +1,16 @@
 #include <TMB.hpp>
 
 // Function to import R list for user-defined Options_vec and Options, packaged as list Options_list in TmbData
+// Try asScalarType
 //template<class Type>
 //struct options_list {
-//  Type constant_tail_probability;
+//  vector<Type> constant_tail_probability;
+//  vector<int> log2steps;
+//  vector<Type> alpha_ratio_bounds;
 //  options_list(SEXP x){ // Constructor
-//    constant_tail_probability = Type(getListElement(x,"Options_vec"));
+//    constant_tail_probability = asVector<Type>(getListElement(x,"constant_tail_probability"));;
+//    log2steps = asVector<int>(getListElement(x,"log2steps"));;
+//    alpha_ratio_bounds = asVector<Type>(getListElement(x,"alpha_ratio_bounds"));;
 //  }
 //};
 
@@ -75,6 +80,7 @@ Type objective_function<Type>::operator() ()
   DATA_INTEGER( log2steps );
   DATA_SCALAR( constant_tail_probability );
   DATA_SCALAR( alpha_ratio_bounds );
+  DATA_INTEGER( report_early );
   DATA_ARRAY( X_guyk );
   DATA_IMATRIX( uy_tz );
   DATA_IMATRIX( satellite_iz );
@@ -128,6 +134,11 @@ Type objective_function<Type>::operator() ()
   nll_i.setZero();
   nll_j.setZero();
   nll_t.setZero();
+
+  if( report_early == 1 ){
+    REPORT( alpha_k );
+    return( jnll );
+  }
 
   // Global variables
   array<Type> prob_satellite_igt( n_i, n_g, n_t );

@@ -11,9 +11,9 @@ fitTMB <-
 function( X_guyk,
       coords_gz,
       #t_uy,
-      uy_tz = NULL,
       satellite_iz = NULL,
       survey_jz = NULL,
+      uy_tz = NULL,
       duration_u = NULL,
       cpp_version = FishStatsUtils::get_latest_version(package="ATM"),
       tmb_dir = system.file("executables",package="ATM"),
@@ -154,9 +154,31 @@ function( X_guyk,
   ThorsonUtilities::list_parameters( Return$Obj )
 
   # Optimize
+  if( FALSE ){
+    obj = Return$Obj
+    fn=obj$fn
+    gr=obj$gr
+    startpar=NULL
+    lower=-Inf
+    upper=Inf
+    getsd=TRUE
+    control=control=list(trace=1)
+    bias.correct=FALSE
+    bias.correct.control=list(sd=FALSE, split=NULL, nsplit=NULL, vars_to_correct=NULL)
+    savedir=run_dir
+    loopnum=3
+    newtonsteps=0
+    n=Inf
+    getReportCovariance=FALSE
+    getJointPrecision=FALSE
+    getHessian=FALSE
+    quiet=FALSE
+    List = list()
+  }
   if( run_model == TRUE ){
     Return$Obj$env$beSilent()
-    Return$parameter_estimates = TMBhelper::fit_tmb( Return$Obj, control=list(trace=1), savedir=run_dir, ... )
+    Return$parameter_estimates = TMBhelper::fit_tmb( Return$Obj, control=list(trace=1),
+      savedir=run_dir, getReportCovariance=TRUE, ... ) #
     Return$parhat = Return$Obj$env$parList( Return$parameter_estimates$par )
   }
 
@@ -195,8 +217,13 @@ print.fitTMB <- function(x, ...)
 #' @return NULL
 #' @method predict fitTMB
 #' @export
-predict.fitTMB <- function(x, newdata, origdata=NULL, ...)
+predict.fitTMB <- function(x,
+               newdata,
+               origdata = NULL,
+               prediction_type = 1,
+               seed = NULL )
 {
+  #message("Running `predict.fitTMB`")
   if( !is.null(origdata) ){
     for(cI in 1:ncol(newdata)){
       if(is.factor(origdata[,cI])){
@@ -206,17 +233,41 @@ predict.fitTMB <- function(x, newdata, origdata=NULL, ...)
   }
   fulldata = rbind( newdata, origdata )
 
-  #cat("fitTMB(.) predict\n")
-  if( "parameter_estimates" %in% names(x) ){
-    #print( x$parameter_estimates )
-    new_matrix = model.matrix( update.formula(formula, ~.+1), data=fulldata )
-    alpha_k = c( 0, x$Report$alpha_k )
-    pred = ( new_matrix %*% alpha_k )[,1]
-    newpred = pred[1:nrow(newdata)]
-    return(newpred)
-  }else{
-    cat("`parameter_estimates` not available in `fitTMB`\n")
+  # MLE for covariance predictions
+  if( prediction_type==1 ){
+    if( "parameter_estimates" %in% names(x) ){
+      alpha_k = c( 0, x$Report$alpha_k )
+    }else{
+      stop("`parameter_estimates` not available in `fitTMB`\n")
+    }
   }
+  if( prediction_type==2 ){
+    if( "SD" %in% names(x$parameter_estimates) ){
+      # Simulate new fixed-effect values
+      set.seed(seed)
+      fixed_sim = mvtnorm::rmvnorm( n=1, mean=x$parameter_estimates$par, sigma=x$parameter_estimates$SD$cov.fixed )
+      # Add simulated fixed to joint parameter vector
+      joint_par = x$Obj$env$last.par
+      if(length(x$Obj$env$random)>0){
+        joint_par[-x$Obj$env$random] = fixed_sim
+      }else{
+        joint_par = fixed_sim
+      }
+      # Use cheap report
+      x$Obj$env$data$report_early = 1
+      Report_sim = x$Obj$report(joint_par)
+      alpha_k = c( 0, Report_sim$alpha_k )
+      x$Obj$env$data$report_early = 0
+    }else{
+      stop("`parameter_estimates` doesn't include covariance in `fit_TMB`")
+    }
+  }
+
+  #print( x$parameter_estimates )
+  new_matrix = model.matrix( update.formula(formula, ~.+1), data=fulldata )
+  pred = ( new_matrix %*% alpha_k )[,1]
+  newpred = pred[1:nrow(newdata)]
+  return(newpred)
 }
 
 #' Predict habitat preference
