@@ -84,6 +84,8 @@ Type objective_function<Type>::operator() ()
   DATA_ARRAY( X_guyk );
   DATA_IMATRIX( uy_tz );
   DATA_IMATRIX( satellite_iz );
+  DATA_IMATRIX( conventional_hz );
+  DATA_ARRAY( E_guy );
   DATA_VECTOR( duration_u );
   DATA_MATRIX( A_gg );
 
@@ -113,6 +115,7 @@ Type objective_function<Type>::operator() ()
   int n_y = X_guyk.col(0).size() / n_g / n_u;
   int n_k = X_guyk.size() / n_g / n_u / n_y;
   int n_t = uy_tz.rows();
+  int n_h = conventional_hz.rows();
   int n_i = satellite_iz.rows();
   int n_j = b_j.size();
   int n_s = ln_d_st.col(0).size();
@@ -128,9 +131,11 @@ Type objective_function<Type>::operator() ()
 
   // Global variables
   Type jnll = 0;
+  vector<Type> nll_h( n_h );
   vector<Type> nll_i( n_i );
   vector<Type> nll_j( n_j );
   vector<Type> nll_t( n_t );
+  nll_h.setZero();
   nll_i.setZero();
   nll_j.setZero();
   nll_t.setZero();
@@ -142,6 +147,7 @@ Type objective_function<Type>::operator() ()
 
   // Global variables
   array<Type> prob_satellite_igt( n_i, n_g, n_t );
+  array<Type> prob_conventional_hgt( n_h, n_g, n_t );
   //array<Type> logprob_satellite_igt( n_i, n_g, n_t );
   matrix<Type> Diffusion_gg( n_g, n_g );
   matrix<Type> Taxis_gg( n_g, n_g );
@@ -209,12 +215,37 @@ Type objective_function<Type>::operator() ()
         }
       }
     }
+
+    // Apply to conventional tags
+    for( int h=0; h<n_h; h++ ){
+      if( conventional_hz(h,2) == t ){
+        for( int g=0; g<n_g; g++ ){
+          prob_conventional_hgt(h,g,t) = Movement_gg( g, conventional_hz(h,0) );
+          // Low tail probability inflation
+          prob_conventional_hgt(h,g,t) = constant_tail_probability + (1.0 - n_g*constant_tail_probability) * prob_conventional_hgt(h,g,t);
+       }
+      }
+      if( (conventional_hz(h,2)<t) & (conventional_hz(h,3)>=t) ){
+        for( int g2=0; g2<n_g; g2++ ){
+          for( int g1=0; g1<n_g; g1++ ){
+            prob_conventional_hgt(h,g2,t) += Movement_gg(g2,g1) * prob_conventional_hgt(h,g1,t-1);
+          }
+          // Low tail probability inflation
+          prob_conventional_hgt(h,g2,t) = constant_tail_probability + (1.0 - n_g*constant_tail_probability) * prob_conventional_hgt(h,g2,t);
+        }
+      }
+    }
   }
 
   // Calculate log-likelihood for sat-tags
   for( int i=0; i<n_i; i++ ){
-    nll_i(i) = -1 * log(prob_satellite_igt( i, satellite_iz(i,1), satellite_iz(i,3) ));
+    nll_i(i) = -1 * log( prob_satellite_igt(i,satellite_iz(i,1),satellite_iz(i,3)) );
     //nll_i(i) = -1 * logprob_satellite_igt( i, satellite_iz(i,1), satellite_iz(i,3) );
+  }
+
+  // Calculate log-likelihood for conventional-tags
+  for( int h=0; h<n_h; h++ ){
+    nll_h(h) = -1 * log( E_guy(conventional_hz(h,1),uy_tz(conventional_hz(h,3),0),uy_tz(conventional_hz(h,3),1)) * prob_conventional_hgt(h,conventional_hz(h,1),conventional_hz(h,3)) );
   }
 
   // Survey data -- Skip if survey data not present
@@ -295,6 +326,7 @@ Type objective_function<Type>::operator() ()
   Msum_gg = matrix_exponential( n_g, log2steps, Mprimesum_gg );
 
   // Cumulate jnll
+  jnll += sum(nll_h);
   jnll += sum(nll_i);
   jnll += sum(nll_j);
   jnll += sum(nll_t);
@@ -314,6 +346,7 @@ Type objective_function<Type>::operator() ()
   REPORT( prob_satellite_igt );
   REPORT( Preference_gt );
   REPORT( jnll );
+  REPORT( nll_h );
   REPORT( nll_i );
   REPORT( nll_j );
   REPORT( nll_t);

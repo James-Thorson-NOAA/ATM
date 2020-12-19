@@ -9,17 +9,19 @@
 #' @export
 make_data <-
 function( X_guyk,
-  coords_gz,
-  #t_uy,
-  uy_tz = NULL,
-  satellite_iz = NULL,
-  survey_jz = NULL,
-  duration_u = NULL,
-  cpp_version = "R",
-  log2steps = 20,
-  spde_aniso = NULL,
-  alpha_ratio_bounds = 1,
-  constant_tail_probability = 1e-8 ){
+      coords_gz,
+      #t_uy,
+      uy_tz = NULL,
+      conventional_hz = NULL,
+      satellite_iz = NULL,
+      survey_jz = NULL,
+      E_guy = NULL,
+      duration_u = NULL,
+      cpp_version = "R",
+      log2steps = 20,
+      spde_aniso = NULL,
+      alpha_ratio_bounds = 1,
+      constant_tail_probability = 1e-8 ){
 
   # Check for issues
   if( !is.na(log2steps) && abs(log2steps)==Inf ) stop("`log2steps` cannot be Inf")
@@ -44,15 +46,28 @@ function( X_guyk,
       stop("Check for problem in satellite tags")
     }
   }
+  if(missing(conventional_hz) | is.null(conventional_hz)){
+    conventional_hz = matrix(NA, nrow=0, ncol=4, dimnames=list(NULL,c("g_release","g_recovery","t_release","t_recovery")) )
+  }else{
+    if( any(conventional_hz[,'t_recovery'] < conventional_hz[,'t_release']) ){
+      stop("Check for problem in conventional tags")
+    }
+  }
   if(missing(duration_u) | is.null(duration_u)){
     duration_u = 1 / n_u
   }
   if(missing(survey_jz) | is.null(survey_jz)){
     survey_jz = matrix(NA, nrow=0, ncol=3, dimnames=list(NULL,c("b_j","t_j","g_j")) )
   }
+  if(missing(E_guy) | is.null(E_guy)){
+    E_guy = array(1, dim=c(n_g,n_u,n_y))
+  }
 
   # Number of time intervals
   n_t = nrow(uy_tz)
+
+  # Rescale E_guy to be a proportion by location in each season-year
+  E_guy = E_guy / outer( rep(1,n_g), apply(E_guy,MARGIN=2:3,FUN=sum) )
 
   # Calculate adjacency matrix
   distance_gg = as.matrix(dist(coords_gz[,c('x','y')]))
@@ -79,6 +94,13 @@ function( X_guyk,
       "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
       "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
       "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg,
+      "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
+  }
+  if( cpp_version %in% c("ATM_v4_0_0") ){
+    data_list = list( "alpha_ratio_bounds"=alpha_ratio_bounds, "log2steps"=log2steps,
+      "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
+      "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
+      "survey_jz"=survey_jz, "E_guy"=E_guy, "duration_u"=duration_u, "A_gg"=Adense_gg,
       "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
   }
 

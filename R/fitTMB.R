@@ -12,7 +12,9 @@ function( X_guyk,
       coords_gz,
       #t_uy,
       satellite_iz = NULL,
+      conventional_hz = NULL,
       survey_jz = NULL,
+      E_guy = NULL,
       uy_tz = NULL,
       duration_u = NULL,
       cpp_version = FishStatsUtils::get_latest_version(package="ATM"),
@@ -47,7 +49,9 @@ function( X_guyk,
     coords_gz = coords_gz,
     uy_tz = uy_tz,
     satellite_iz = satellite_iz,
+    conventional_hz = conventional_hz,
     survey_jz = survey_jz,
+    E_guy = E_guy,
     duration_u = duration_u,
     cpp_version = cpp_version,
     log2steps = log2steps,
@@ -81,7 +85,7 @@ function( X_guyk,
       "Epsiloninput_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
     )
   }
-  if( cpp_version %in% c("ATM_v3_0_0") ){
+  if( cpp_version %in% c("ATM_v4_0_0","ATM_v3_0_0") ){
     param_list = list(
       "ln_sigma" = log(sqrt(sigma2)),
       "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
@@ -125,7 +129,7 @@ function( X_guyk,
   #
   random = c("Omegainput_s", "Epsiloninput_st", "ln_d_st")
   if( use_REML==TRUE ){
-    random = union( random, c("Beta_t","ln_phi","alpha_logit_ratio_k") )
+    random = union( random, c("Beta_t","ln_phi","alpha_logit_ratio_k") ) # "ln_sigma"
   }
   random = random[which(random %in% names(param_list))]
   if( length(random)==0) random = NULL
