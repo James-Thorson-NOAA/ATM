@@ -34,8 +34,8 @@ function( x,
       if( sI%%max(1,floor(n_samples/10)) == 0 ){
         message( "  Finished sample ", sI, " of ",n_samples )
       }
-      # predict( fit, prediction_type=2, newdata=Data_zk, origdata=Data_zk, seed=sI )
-      #Partial = partial(fit, prediction_type=2, train=Data_zk, origdata=Data_zk, pred.var=c("BT","season"), type="regression", seed=sI )
+      # predict( fit, prediction_type=2, newdata=train, origdata=train, seed=sI, formula=formula_diffusion )
+      #Partial = partial(fit, prediction_type=2, train=train, origdata=train, pred.var=c("BT","season"), type="regression", seed=sI, formula=formula_diffusion )
       Partial = partial(fit, prediction_type=2, train=train, origdata=train, seed=sI, ...)
       yhat_zs = cbind( yhat_zs, Partial$yhat )
     }

@@ -8,13 +8,16 @@ make_data(
   X_guyk,
   coords_gz,
   uy_tz = NULL,
+  conventional_hz = NULL,
   satellite_iz = NULL,
   survey_jz = NULL,
+  E_guy = NULL,
   duration_u = NULL,
   cpp_version = "R",
   log2steps = 20,
   spde_aniso = NULL,
   alpha_ratio_bounds = 1,
+  diffusion_bounds = 0,
   constant_tail_probability = 1e-08
 )
 }

@@ -7,9 +7,11 @@
 fitTMB(
   X_guyk,
   coords_gz,
-  uy_tz = NULL,
   satellite_iz = NULL,
+  conventional_hz = NULL,
   survey_jz = NULL,
+  E_guy = NULL,
+  uy_tz = NULL,
   duration_u = NULL,
   cpp_version = FishStatsUtils::get_latest_version(package = "ATM"),
   tmb_dir = system.file("executables", package = "ATM"),
@@ -23,6 +25,7 @@ fitTMB(
   run_model = TRUE,
   start_param_list = NULL,
   alpha_ratio_bounds = 1,
+  diffusion_bounds = 0,
   constant_tail_probability = 1e-08,
   ...
 )

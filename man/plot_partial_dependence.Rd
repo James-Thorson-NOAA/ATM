@@ -7,10 +7,10 @@
 plot_partial_dependence(
   x,
   train,
-  filename = paste0(getwd(), "/pdp"),
+  filename = NULL,
   n_samples = 0,
-  width,
-  height,
+  width = 4,
+  height = 4,
   probs = c(0.025, 0.975),
   ...
 )

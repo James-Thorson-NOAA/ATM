@@ -9,6 +9,7 @@
 #' @export
 make_data <-
 function( X_guyk,
+      Z_guyl,
       coords_gz,
       #t_uy,
       uy_tz = NULL,
@@ -21,11 +22,13 @@ function( X_guyk,
       log2steps = 20,
       spde_aniso = NULL,
       alpha_ratio_bounds = 1,
+      diffusion_bounds = 0,
       constant_tail_probability = 1e-8 ){
 
   # Check for issues
   if( !is.na(log2steps) && abs(log2steps)==Inf ) stop("`log2steps` cannot be Inf")
   if( any(is.na(X_guyk)) ) stop("`X_guyk` includes NA values; please fix")
+  if( any(is.na(Z_guyl)) ) stop("`Z_guyl` includes NA values; please fix")
 
   # Get dimensions
   n_g = dim(X_guyk)[1]
@@ -90,16 +93,17 @@ function( X_guyk,
       "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg, "log2steps"=log2steps )
   }
   if( cpp_version %in% c("ATM_v3_0_0","ATM_v2_0_0") ){
-    data_list = list( "alpha_ratio_bounds"=alpha_ratio_bounds, "log2steps"=log2steps,
+    data_list = list( "log2steps"=log2steps,"alpha_ratio_bounds"=alpha_ratio_bounds,
       "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
       "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1,
       "survey_jz"=survey_jz, "duration_u"=duration_u, "A_gg"=Adense_gg,
       "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
   }
   if( cpp_version %in% c("ATM_v4_0_0") ){
-    data_list = list( "alpha_ratio_bounds"=alpha_ratio_bounds, "log2steps"=log2steps,
+    data_list = list( "log2steps"=log2steps,"alpha_ratio_bounds"=alpha_ratio_bounds, "diffusion_bounds"=diffusion_bounds,
       "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
-      "X_guyk"=X_guyk, "uy_tz"=uy_tz-1, "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
+      "X_guyk"=X_guyk, "Z_guyl"=Z_guyl, "uy_tz"=uy_tz-1,
+      "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
       "survey_jz"=survey_jz, "E_guy"=E_guy, "duration_u"=duration_u, "A_gg"=Adense_gg,
       "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
   }

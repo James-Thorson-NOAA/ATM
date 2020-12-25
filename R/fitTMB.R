@@ -9,6 +9,7 @@
 #' @export
 fitTMB <-
 function( X_guyk,
+      Z_guyl,
       coords_gz,
       #t_uy,
       satellite_iz = NULL,
@@ -29,6 +30,7 @@ function( X_guyk,
       run_model = TRUE,
       start_param_list = NULL,
       alpha_ratio_bounds = 1,
+      diffusion_bounds = 0,
       constant_tail_probability = 1e-8,
       ... ){
 
@@ -46,6 +48,7 @@ function( X_guyk,
     use_REML = TRUE
   }
   data_list = make_data( X_guyk = X_guyk,
+    Z_guyl = Z_guyl,
     coords_gz = coords_gz,
     uy_tz = uy_tz,
     satellite_iz = satellite_iz,
@@ -57,7 +60,8 @@ function( X_guyk,
     log2steps = log2steps,
     spde_aniso = spde_aniso,
     constant_tail_probability = constant_tail_probability,
-    alpha_ratio_bounds = alpha_ratio_bounds
+    alpha_ratio_bounds = alpha_ratio_bounds,
+    diffusion_bounds = diffusion_bounds
   )
 
   # Make parameters
@@ -85,9 +89,23 @@ function( X_guyk,
       "Epsiloninput_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
     )
   }
-  if( cpp_version %in% c("ATM_v4_0_0","ATM_v3_0_0") ){
+  if( cpp_version %in% c("ATM_v3_0_0") ){
     param_list = list(
       "ln_sigma" = log(sqrt(sigma2)),
+      "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
+      "ln_H_input" = c(0,0),
+      "ln_kappa" = -3,
+      "ln_sigma_epsilon0" = log(3),
+      "ln_sigma_epsilon" = log(1),
+      "ln_phi" = log(1),
+      "power_prime" = qlogis( 1.5 - 1 ),
+      "Beta_t" = rep(0, nrow(data_list$uy_tz)),
+      "ln_d_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
+    )
+  }
+  if( cpp_version %in% c("ATM_v4_0_0") ){
+    param_list = list(
+      "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(Z_guyl)[4]-1) ),
       "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
       "ln_H_input" = c(0,0),
       "ln_kappa" = -3,
@@ -111,11 +129,13 @@ function( X_guyk,
 
   # Which map
   map = NULL
+  # Map off betas for years without survey data
   if( "Beta_t" %in% names(param_list) ){
     Beta_t = 1:length(param_list$Beta_t) - 1
     Beta_t = ifelse( Beta_t %in% data_list$t_j, Beta_t, NA )
     map$Beta_t = factor(Beta_t)
   }
+  # Map off density parameters if no survey data is available
   if( length(data_list$b_j) == 0 ){
     if("ln_H_input"%in%names(param_list)) map$ln_H_input = factor(c(NA,NA))
     if("ln_kappa"%in%names(param_list)) map$ln_kappa = factor(NA)
@@ -125,11 +145,32 @@ function( X_guyk,
     if("power_prime"%in%names(param_list)) map$power_prime = factor(NA)
     if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
   }
+  # Map off density effects for the intercept
+  if( any(dimnames(X_guyk)[[4]]=="(Intercept)") ){
+    map$alpha_logit_ratio_k[which(dimnames(X_guyk)[[4]]=="(Intercept)")] = NA
+  }
+  # Map off constants in X_guyk
+  turnoff_k = apply( X_guyk, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+  if( any(turnoff_k) ){
+    map$alpha_logit_ratio_k = 1:length(param_list$alpha_logit_ratio_k)
+    map$alpha_logit_ratio_k[which(turnoff_k)] = NA
+    map$alpha_logit_ratio_k = factor(map$alpha_logit_ratio_k)
+    param_list$alpha_logit_ratio_k[which(dimnames(X_guyk)[[4]]=="(Intercept)")] = 0
+  }
+  # Map off constants in Z_guyl except first term
+  turnoff_l = apply( Z_guyl, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+  turnoff_l[1] = FALSE
+  if( any(turnoff_l) ){
+    map$ln_sigma_l = 1:length(param_list$ln_sigma_l)
+    map$ln_sigma_l[which(turnoff_l)] = NA
+    map$ln_sigma_l = factor(map$ln_sigma_l)
+    param_list$ln_sigma_l[which(turnoff_l)] = 0
+  }
 
   #
   random = c("Omegainput_s", "Epsiloninput_st", "ln_d_st")
   if( use_REML==TRUE ){
-    random = union( random, c("Beta_t","ln_phi","alpha_logit_ratio_k") ) # "ln_sigma"
+    random = union( random, c("Beta_t","ln_phi") ) # ,"alpha_logit_ratio_k","ln_sigma","ln_sigma_l"
   }
   random = random[which(random %in% names(param_list))]
   if( length(random)==0) random = NULL
@@ -223,6 +264,8 @@ print.fitTMB <- function(x, ...)
 #' @export
 predict.fitTMB <- function(x,
                newdata,
+               formula,
+               varname = "alpha_k",
                origdata = NULL,
                prediction_type = 1,
                seed = NULL )
@@ -240,7 +283,8 @@ predict.fitTMB <- function(x,
   # MLE for covariance predictions
   if( prediction_type==1 ){
     if( "parameter_estimates" %in% names(x) ){
-      alpha_k = c( 0, x$Report$alpha_k )
+      if(varname=="alpha_k") var_vec = c( 0, x$Report$alpha_k )
+      if(varname=="ln_sigma_l") var_vec = x$Report$ln_sigma_l
     }else{
       stop("`parameter_estimates` not available in `fitTMB`\n")
     }
@@ -260,7 +304,8 @@ predict.fitTMB <- function(x,
       # Use cheap report
       x$Obj$env$data$report_early = 1
       Report_sim = x$Obj$report(joint_par)
-      alpha_k = c( 0, Report_sim$alpha_k )
+      if(varname=="alpha_k") var_vec = c( 0, Report_sim$alpha_k )  # Add zero because formula used here has an intercept, but fitted one doesn't
+      if(varname=="ln_sigma_l") var_vec = Report_sim$ln_sigma_l
       x$Obj$env$data$report_early = 0
     }else{
       stop("`parameter_estimates` doesn't include covariance in `fit_TMB`")
@@ -269,7 +314,7 @@ predict.fitTMB <- function(x,
 
   #print( x$parameter_estimates )
   new_matrix = model.matrix( update.formula(formula, ~.+1), data=fulldata )
-  pred = ( new_matrix %*% alpha_k )[,1]
+  pred = ( new_matrix %*% var_vec )[,1]
   newpred = pred[1:nrow(newdata)]
   return(newpred)
 }
@@ -318,13 +363,13 @@ simulate.fitTMB <- function(x, random_seed=NULL, ...)
 #' @return NULL
 #' @method summary fitTMB
 #' @export
-summary.fitTMB <- function(x, what="residuals", n_samples=250,
+summary.fitTMB <- function(x, what="survey_residuals", n_samples=250,
   working_dir=NULL, ...)
 {
   ans = NULL
 
   # Residuals
-  if( tolower(what) == "residuals" ){
+  if( tolower(what) == "survey_residuals" ){
     # extract objects
     Obj = x$Obj
 

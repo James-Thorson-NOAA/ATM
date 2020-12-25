@@ -14,6 +14,20 @@
 //  }
 //};
 
+// Posfun -- see https://github.com/kaskr/adcomp/wiki/Code--snippets
+// See more: https://www.coin-or.org/CppAD/Doc/doxydoc/html/cond__exp_8hpp_source.html
+template<class Type>
+Type posfun(Type x, Type eps, Type &pen){
+  pen += CppAD::CondExpLt(x, eps, Type(0.01) * pow(x-eps,2), Type(0));   // left, right, if-true, if-false
+  return CppAD::CondExpGe(x, eps, x, eps/(Type(2)-x/eps));
+}
+
+// new version
+//Type posfun_hinge( Type x, Type rate ){
+//  return log( exp(Type(0)) + exp(x*rate) ) / rate;
+//  return logspace_add(Type(0), x*rate) / rate;
+//}
+
 // Function for detecting NAs
 template<class Type>
 bool isNA(Type x){
@@ -80,8 +94,10 @@ Type objective_function<Type>::operator() ()
   DATA_INTEGER( log2steps );
   DATA_SCALAR( constant_tail_probability );
   DATA_SCALAR( alpha_ratio_bounds );
+  DATA_INTEGER( diffusion_bounds );
   DATA_INTEGER( report_early );
   DATA_ARRAY( X_guyk );
+  DATA_ARRAY( Z_guyl );
   DATA_IMATRIX( uy_tz );
   DATA_IMATRIX( satellite_iz );
   DATA_IMATRIX( conventional_hz );
@@ -96,7 +112,7 @@ Type objective_function<Type>::operator() ()
   DATA_IVECTOR( g_j );
 
   // Parameters
-  PARAMETER( ln_sigma );
+  PARAMETER_VECTOR( ln_sigma_l );
   PARAMETER_VECTOR( alpha_logit_ratio_k );
 
   // SPDE parameters
@@ -114,6 +130,7 @@ Type objective_function<Type>::operator() ()
   int n_u = X_guyk.col(0).col(0).size() / n_g;
   int n_y = X_guyk.col(0).size() / n_g / n_u;
   int n_k = X_guyk.size() / n_g / n_u / n_y;
+  int n_l = Z_guyl.size() / n_g / n_u / n_y;
   int n_t = uy_tz.rows();
   int n_h = conventional_hz.rows();
   int n_i = satellite_iz.rows();
@@ -121,10 +138,10 @@ Type objective_function<Type>::operator() ()
   int n_s = ln_d_st.col(0).size();
 
   // Transform inputs
-  Type sigma2 = exp( 2.0 * ln_sigma );
+  //vector<Type> sigma2_l = exp( 2.0 * ln_sigma_l );
   vector<Type> alpha_k( n_k );
   if( alpha_ratio_bounds > 0 ){
-    alpha_k = alpha_ratio_bounds * sigma2 * (2.0 * invlogit(alpha_logit_ratio_k) - 1.0);
+    alpha_k = alpha_ratio_bounds * exp(2.0*ln_sigma_l(0)) * (2.0 * invlogit(alpha_logit_ratio_k) - 1.0);
   }else{
     alpha_k = alpha_logit_ratio_k;
   }
@@ -142,12 +159,15 @@ Type objective_function<Type>::operator() ()
 
   if( report_early == 1 ){
     REPORT( alpha_k );
+    REPORT( ln_sigma_l );
     return( jnll );
   }
 
   // Global variables
   array<Type> prob_satellite_igt( n_i, n_g, n_t );
   array<Type> prob_conventional_hgt( n_h, n_g, n_t );
+  array<Type> prob_satellite_ig( n_i, n_g );
+  array<Type> prob_conventional_hg( n_h, n_g );
   //array<Type> logprob_satellite_igt( n_i, n_g, n_t );
   matrix<Type> Diffusion_gg( n_g, n_g );
   matrix<Type> Taxis_gg( n_g, n_g );
@@ -156,18 +176,16 @@ Type objective_function<Type>::operator() ()
   matrix<Type> Mprimesum_gg( n_g, n_g );
   matrix<Type> Movement_gg( n_g, n_g );
   matrix<Type> Preference_gt( n_g, n_t );
+  matrix<Type> ln_sigma_gt( n_g, n_t );
   vector<Type> init_g( n_g );
   matrix<Type> Msum_gg( n_g, n_g );
   Mprimesum_gg.setZero();
   Preference_gt.setZero();
+  ln_sigma_gt.setZero();
 
   // Loop through times
   //array<Type> logspaceadd_itgg( n_i, n_t, n_g, n_g );
   for( int t=0; t<n_t; t++ ){
-    // Diffusion-rate matrix
-    Diffusion_gg = sigma2 * A_gg;
-    Diffusion_gg = subtract_colsum_from_diagonal( n_g, Diffusion_gg );
-
     // Advection-rate matrix
     for( int g=0; g<n_g; g++ ){
     for( int k=0; k<n_k; k++ ){
@@ -177,6 +195,29 @@ Type objective_function<Type>::operator() ()
     for( int g2=0; g2<n_g; g2++ ){
       Taxis_gg(g1,g2) = A_gg(g1,g2) * (Preference_gt(g1,t) - Preference_gt(g2,t));
     }}
+
+    // Diffusion-rate matrix
+    for( int g=0; g<n_g; g++ ){
+    for( int l=0; l<n_l; l++ ){
+      ln_sigma_gt(g,t) += Z_guyl(g,uy_tz(t,0),uy_tz(t,1),l) * ln_sigma_l(l);
+    }}
+    for( int g1=0; g1<n_g; g1++ ){
+    for( int g2=0; g2<n_g; g2++ ){
+      Diffusion_gg(g1,g2) = A_gg(g1,g2) * exp(2.0 * ln_sigma_gt(g2,t));
+    }}
+    if( diffusion_bounds == 1 ){
+      // Ensure that Diffusion_gg(g1,g2)+Taxis_gg(g1,g2) > 0 for all g1 != g2
+      Type minval;
+      for( int g2=0; g2<n_g; g2++ ){
+        minval = min(vector<Type>(Taxis_gg.col(g2)));
+        for( int g1=0; g1<n_g; g1++ ){
+          Diffusion_gg(g1,g2) += -1 * A_gg(g1,g2) * minval;
+        }
+      }
+    }
+
+    // Do mass-balance after min for Taxis_gg
+    Diffusion_gg = subtract_colsum_from_diagonal( n_g, Diffusion_gg );
     Taxis_gg = subtract_colsum_from_diagonal( n_g, Taxis_gg );
 
     // Movement probability matrix
@@ -223,7 +264,7 @@ Type objective_function<Type>::operator() ()
           prob_conventional_hgt(h,g,t) = Movement_gg( g, conventional_hz(h,0) );
           // Low tail probability inflation
           prob_conventional_hgt(h,g,t) = constant_tail_probability + (1.0 - n_g*constant_tail_probability) * prob_conventional_hgt(h,g,t);
-       }
+        }
       }
       if( (conventional_hz(h,2)<t) & (conventional_hz(h,3)>=t) ){
         for( int g2=0; g2<n_g; g2++ ){
@@ -241,11 +282,17 @@ Type objective_function<Type>::operator() ()
   for( int i=0; i<n_i; i++ ){
     nll_i(i) = -1 * log( prob_satellite_igt(i,satellite_iz(i,1),satellite_iz(i,3)) );
     //nll_i(i) = -1 * logprob_satellite_igt( i, satellite_iz(i,1), satellite_iz(i,3) );
+    for( int g=0; g<n_g; g++ ){
+      prob_satellite_ig(i,g) = prob_satellite_igt(i,g,satellite_iz(i,3));
+    }
   }
 
   // Calculate log-likelihood for conventional-tags
   for( int h=0; h<n_h; h++ ){
     nll_h(h) = -1 * log( E_guy(conventional_hz(h,1),uy_tz(conventional_hz(h,3),0),uy_tz(conventional_hz(h,3),1)) * prob_conventional_hgt(h,conventional_hz(h,1),conventional_hz(h,3)) );
+    for( int g=0; g<n_g; g++ ){
+      prob_conventional_hg(h,g) = prob_conventional_hgt(h,g,conventional_hz(h,3));
+    }
   }
 
   // Survey data -- Skip if survey data not present
@@ -332,8 +379,9 @@ Type objective_function<Type>::operator() ()
   jnll += sum(nll_t);
 
   // Report stuff out
-  REPORT( sigma2 );
+  //REPORT( sigma2 );
   REPORT( alpha_k );
+  REPORT( ln_sigma_l );
   REPORT( Diffusion_gg );
   REPORT( Taxis_gg );
   REPORT( Mprime_ggt );
@@ -344,7 +392,11 @@ Type objective_function<Type>::operator() ()
   //REPORT( logprob_satellite_igt );
   //REPORT( logspaceadd_itgg );
   REPORT( prob_satellite_igt );
+  REPORT( prob_conventional_hgt );
+  REPORT( prob_satellite_ig );
+  REPORT( prob_conventional_hg );
   REPORT( Preference_gt );
+  REPORT( ln_sigma_gt );
   REPORT( jnll );
   REPORT( nll_h );
   REPORT( nll_i );
