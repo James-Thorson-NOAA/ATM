@@ -16,6 +16,7 @@ function( X_guyk,
       conventional_hz = NULL,
       satellite_iz = NULL,
       survey_jz = NULL,
+      fishery_fz = NULL,
       E_guy = NULL,
       duration_u = NULL,
       cpp_version = "R",
@@ -62,6 +63,9 @@ function( X_guyk,
   if(missing(survey_jz) | is.null(survey_jz)){
     survey_jz = matrix(NA, nrow=0, ncol=3, dimnames=list(NULL,c("b_j","t_j","g_j")) )
   }
+  if(missing(fishery_fz) | is.null(fishery_fz)){
+    fishery_fz = matrix(NA, nrow=0, ncol=3, dimnames=list(NULL,c("b_f","t_f","g_f")) )
+  }
   if(missing(E_guy) | is.null(E_guy)){
     E_guy = array(1, dim=c(n_g,n_u,n_y))
   }
@@ -106,6 +110,16 @@ function( X_guyk,
       "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
       "survey_jz"=survey_jz, "E_guy"=E_guy, "duration_u"=duration_u, "A_gg"=Adense_gg,
       "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
+  }
+  if( cpp_version %in% c("ATM_v5_0_0") ){
+    data_list = list( "log2steps"=log2steps,"alpha_ratio_bounds"=alpha_ratio_bounds, "diffusion_bounds"=diffusion_bounds,
+      "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
+      "X_guyk"=X_guyk, "Z_guyl"=Z_guyl, "uy_tz"=uy_tz-1,
+      "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
+      "survey_jz"=survey_jz, "fishery_fz"=fishery_fz,
+      "E_guy"=E_guy, "duration_u"=duration_u, "A_gg"=Adense_gg, "spde_aniso"=spde_aniso,
+      "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1,
+      "b_f"=fishery_fz[,'b_f'], "t_f"=fishery_fz[,'t_f']-1, "g_f"=fishery_fz[,'g_f']-1 )
   }
 
   # return

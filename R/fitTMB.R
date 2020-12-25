@@ -15,6 +15,7 @@ function( X_guyk,
       satellite_iz = NULL,
       conventional_hz = NULL,
       survey_jz = NULL,
+      fishery_fz = NULL,
       E_guy = NULL,
       uy_tz = NULL,
       duration_u = NULL,
@@ -54,6 +55,7 @@ function( X_guyk,
     satellite_iz = satellite_iz,
     conventional_hz = conventional_hz,
     survey_jz = survey_jz,
+    fishery_fz = fishery_fz,
     E_guy = E_guy,
     duration_u = duration_u,
     cpp_version = cpp_version,
@@ -117,6 +119,22 @@ function( X_guyk,
       "ln_d_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
     )
   }
+  if( cpp_version %in% c("ATM_v5_0_0") ){
+    param_list = list(
+      "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(Z_guyl)[4]-1) ),
+      "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
+      "ln_H_input" = c(0,0),
+      "ln_kappa" = -3,
+      "ln_sigma_epsilon0" = log(3),
+      "ln_sigma_epsilon" = log(1),
+      "ln_phi" = log(1),
+      "power_prime" = qlogis( 1.5 - 1 ),
+      "ln_CV" = log(1),
+      "lambda" = 0,
+      "Beta_t" = rep(0, nrow(data_list$uy_tz)),
+      "ln_d_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
+    )
+  }
 
   # User supplied start values
   if( !is.null(start_param_list) ){
@@ -132,18 +150,26 @@ function( X_guyk,
   # Map off betas for years without survey data
   if( "Beta_t" %in% names(param_list) ){
     Beta_t = 1:length(param_list$Beta_t) - 1
-    Beta_t = ifelse( Beta_t %in% data_list$t_j, Beta_t, NA )
+    Beta_t = ifelse( Beta_t %in% c(data_list$t_j,data_list$t_f), Beta_t, NA )
     map$Beta_t = factor(Beta_t)
   }
-  # Map off density parameters if no survey data is available
-  if( length(data_list$b_j) == 0 ){
+  # Map off density parameters if no survey data AND no fishery
+  if( length(data_list$b_j)==0 & length(data_list$b_f)==0 ){
     if("ln_H_input"%in%names(param_list)) map$ln_H_input = factor(c(NA,NA))
     if("ln_kappa"%in%names(param_list)) map$ln_kappa = factor(NA)
     if("ln_sigma_epsilon0"%in%names(param_list)) map$ln_sigma_epsilon0 = factor(NA)
     if("ln_sigma_epsilon"%in%names(param_list)) map$ln_sigma_epsilon = factor(NA)
+    if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
+  }
+  # Map off survey measurement-error if no survey data
+  if( length(data_list$b_j) == 0 ){
     if("ln_phi"%in%names(param_list)) map$ln_phi = factor(NA)
     if("power_prime"%in%names(param_list)) map$power_prime = factor(NA)
-    if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
+  }
+  # Map off fishery measurement-error if no fishery data
+  if( length(data_list$b_f) == 0 ){
+    if("ln_CV"%in%names(param_list)) map$ln_CV = factor(NA)
+    if("lambda"%in%names(param_list)) map$lambda = factor(NA)
   }
   # Map off density effects for the intercept
   if( any(dimnames(X_guyk)[[4]]=="(Intercept)") ){
@@ -170,7 +196,7 @@ function( X_guyk,
   #
   random = c("Omegainput_s", "Epsiloninput_st", "ln_d_st")
   if( use_REML==TRUE ){
-    random = union( random, c("Beta_t","ln_phi") ) # ,"alpha_logit_ratio_k","ln_sigma","ln_sigma_l"
+    random = union( random, c("Beta_t","ln_phi","lambda") ) # ,"alpha_logit_ratio_k","ln_sigma","ln_sigma_l"
   }
   random = random[which(random %in% names(param_list))]
   if( length(random)==0) random = NULL
