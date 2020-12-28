@@ -13,6 +13,7 @@ function( x,
       width = 4,
       height = 4,
       probs = c(0.025,0.975),
+      bounds_type = "shading",
       ... )
 {
   # load packages
@@ -20,6 +21,7 @@ function( x,
 
   # Get MLE prediction and append intervals
   Return = NULL
+  #Return$Partial = partial(fit, prediction_type=1, train=train, origdata=train, pred.var=pred.var, type=type, seed=sI, formula=formula )
   Return$Partial = partial(fit, prediction_type=1, train=train, origdata=train, ...)
 
   if( n_samples == 0 ){
@@ -35,7 +37,7 @@ function( x,
         message( "  Finished sample ", sI, " of ",n_samples )
       }
       # predict( fit, prediction_type=2, newdata=train, origdata=train, seed=sI, formula=formula_diffusion )
-      #Partial = partial(fit, prediction_type=2, train=train, origdata=train, pred.var=c("BT","season"), type="regression", seed=sI, formula=formula_diffusion )
+      #Partial = partial(fit, prediction_type=2, train=train, origdata=train, pred.var=pred.var, type=type, seed=sI, formula=formula )
       Partial = partial(fit, prediction_type=2, train=train, origdata=train, seed=sI, ...)
       yhat_zs = cbind( yhat_zs, Partial$yhat )
     }
@@ -51,7 +53,7 @@ function( x,
       plot_timeseries( x = Return$Partial[,1],
         y = Return$Partial[,'yhat'],
         ybounds = Return$Partial[,ncol(Return$Partial)-1:0],
-        bounds_type = "shading",
+        bounds_type = bounds_type,
         bounds_args = list(col = rgb(0,0,0,0.2)),
         fn  =  plot,
         type  =  "l",

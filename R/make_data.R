@@ -24,7 +24,8 @@ function( X_guyk,
       spde_aniso = NULL,
       alpha_ratio_bounds = 1,
       diffusion_bounds = 0,
-      constant_tail_probability = 1e-8 ){
+      constant_tail_probability = 1e-8,
+      movement_penalty = 0 ){
 
   # Check for issues
   if( !is.na(log2steps) && abs(log2steps)==Inf ) stop("`log2steps` cannot be Inf")
@@ -112,7 +113,8 @@ function( X_guyk,
       "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
   }
   if( cpp_version %in% c("ATM_v5_0_0") ){
-    data_list = list( "log2steps"=log2steps,"alpha_ratio_bounds"=alpha_ratio_bounds, "diffusion_bounds"=diffusion_bounds,
+    data_list = list( "log2steps"=log2steps,"alpha_ratio_bounds"=alpha_ratio_bounds,
+      "diffusion_bounds"=diffusion_bounds, "movement_penalty"=movement_penalty,
       "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
       "X_guyk"=X_guyk, "Z_guyl"=Z_guyl, "uy_tz"=uy_tz-1,
       "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,

@@ -22,7 +22,7 @@ function( X_guyk,
       cpp_version = FishStatsUtils::get_latest_version(package="ATM"),
       tmb_dir = system.file("executables",package="ATM"),
       run_dir = getwd(),
-      compile_dir = run_dir,
+      compile_dir = tmb_dir,
       log2steps = 20,
       sigma2 = 4^2,
       spde_aniso = NULL,
@@ -32,6 +32,7 @@ function( X_guyk,
       start_param_list = NULL,
       alpha_ratio_bounds = 1,
       diffusion_bounds = 0,
+      movement_penalty = 0,
       constant_tail_probability = 1e-8,
       ... ){
 
@@ -63,7 +64,8 @@ function( X_guyk,
     spde_aniso = spde_aniso,
     constant_tail_probability = constant_tail_probability,
     alpha_ratio_bounds = alpha_ratio_bounds,
-    diffusion_bounds = diffusion_bounds
+    diffusion_bounds = diffusion_bounds,
+    movement_penalty = movement_penalty
   )
 
   # Make parameters

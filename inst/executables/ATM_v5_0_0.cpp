@@ -18,7 +18,7 @@
 // See more: https://www.coin-or.org/CppAD/Doc/doxydoc/html/cond__exp_8hpp_source.html
 template<class Type>
 Type posfun(Type x, Type eps, Type &pen){
-  pen += CppAD::CondExpLt(x, eps, Type(0.01) * pow(x-eps,2), Type(0));   // left, right, if-true, if-false
+  pen = CppAD::CondExpLt(x, eps, Type(0.01) * pow(x-eps,2), Type(0));   // left-of-operator, right-of-operator, if-true, if-false
   return CppAD::CondExpGe(x, eps, x, eps/(Type(2)-x/eps));
 }
 
@@ -107,6 +107,7 @@ Type objective_function<Type>::operator() ()
   DATA_SCALAR( constant_tail_probability );
   DATA_SCALAR( alpha_ratio_bounds );
   DATA_INTEGER( diffusion_bounds );
+  DATA_SCALAR( movement_penalty );
   DATA_INTEGER( report_early );
   DATA_ARRAY( X_guyk );
   DATA_ARRAY( Z_guyl );
@@ -168,16 +169,20 @@ Type objective_function<Type>::operator() ()
 
   // Global variables
   Type jnll = 0;
+  Type tmp_penalty;
+  Type tmp_value;
   vector<Type> nll_h( n_h );
   vector<Type> nll_i( n_i );
   vector<Type> nll_j( n_j );
   vector<Type> nll_t( n_t );
   vector<Type> nll_f( n_f );
+  array<Type> nll_ggt( n_g, n_g, n_t );
   nll_h.setZero();
   nll_i.setZero();
   nll_j.setZero();
   nll_t.setZero();
   nll_f.setZero();
+  nll_ggt.setZero();
 
   if( report_early == 1 ){
     REPORT( alpha_k );
@@ -244,6 +249,21 @@ Type objective_function<Type>::operator() ()
 
     // Movement probability matrix
     Mprime_gg = Diffusion_gg + Taxis_gg;
+
+    // Movement penalty
+    if( movement_penalty > 0 ){
+      for( int g1=0; g1<n_g; g1++ ){
+      for( int g2=0; g2<n_g; g2++ ){
+        if( A_gg(g1,g2) > 0 ){
+          tmp_value = posfun( Mprime_gg(g1,g2), Type(0.000001), tmp_penalty );
+          Mprime_gg(g2,g2) -= tmp_value - Mprime_gg(g1,g2);
+          Mprime_gg(g1,g2) = tmp_value;
+          nll_ggt(g1,g2,t) = movement_penalty * tmp_penalty;
+        }
+      }}
+    }
+
+    // Accumulate
     Mprimesum_gg += Mprime_gg;
     Movement_gg = matrix_exponential( n_g, log2steps, Mprime_gg );
     for( int g1=0; g1<n_g; g1++ ){
@@ -377,14 +397,14 @@ Type objective_function<Type>::operator() ()
     }
 
     // Log-likelihood for fishery data
-    Type CV = exp(ln_CV);
+    Type CV_squared = exp(2 * ln_CV);
     vector<Type> bhat_f( n_f );
     for( int f=0; f<n_f; f++ ){
       bhat_f(f) = exp( ln_d_st(g_f(f),t_f(f)) + lambda );
       // shape = 1/CV^2;   scale = mean*CV^2
-      nll_f(f) = -1 * dgamma( b_f(f), 1/square(CV), bhat_f(f)*square(CV), true );
+      nll_f(f) = -1 * dgamma( b_f(f), 1/CV_squared, bhat_f(f)*CV_squared, true );
       SIMULATE{
-        b_f(f) = rgamma( 1/square(CV), bhat_f(f)*square(CV) );   // Defined above
+        b_f(f) = rgamma( 1/CV_squared, bhat_f(f)*CV_squared );   // Defined above
       }
       REPORT( bhat_f );
     }
@@ -413,6 +433,7 @@ Type objective_function<Type>::operator() ()
   jnll += sum(nll_j);
   jnll += sum(nll_t);
   jnll += sum(nll_f);
+  jnll += sum(nll_ggt);
 
   // Report stuff out
   //REPORT( sigma2 );
@@ -437,12 +458,14 @@ Type objective_function<Type>::operator() ()
   REPORT( nll_h );
   REPORT( nll_i );
   REPORT( nll_j );
-  REPORT( nll_t);
-  REPORT( nll_f);
+  REPORT( nll_t );
+  REPORT( nll_f );
+  REPORT( nll_ggt );
   ADREPORT( alpha_k );
 
   SIMULATE{
     REPORT( b_j );
+    REPORT( b_f );
   }
 
   return jnll;
