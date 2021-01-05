@@ -3,6 +3,8 @@
 #'
 #' @title Adapts package \code{effects}
 #' @method Effect fitTMB
+#'
+#' @method Effect fitTMB
 #' @export
 Effect.fitTMB <- function (focal.predictors, mod, which_formula="taxis", ...) {
 
