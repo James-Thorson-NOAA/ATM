@@ -4,7 +4,7 @@
 \alias{summary.fitTMB}
 \title{Check residuals etc.}
 \usage{
-\method{summary}{fitTMB}(x, what = "residuals", n_samples = 250, working_dir = NULL, ...)
+\method{summary}{fitTMB}(x, what = "survey_residuals", n_samples = 250, working_dir = NULL, ...)
 }
 \description{
 \code{summary.fitTMB} extracts commonly used quantities derived from a fitted VAST model

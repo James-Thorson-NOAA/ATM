@@ -5,12 +5,15 @@
 \title{Build data input for ATM model}
 \usage{
 make_data(
-  X_guyk,
+  Cov_stars,
+  formula_taxis,
+  formula_diffusion,
   coords_gz,
   uy_tz = NULL,
   conventional_hz = NULL,
   satellite_iz = NULL,
   survey_jz = NULL,
+  fishery_fz = NULL,
   E_guy = NULL,
   duration_u = NULL,
   cpp_version = "R",
@@ -18,7 +21,8 @@ make_data(
   spde_aniso = NULL,
   alpha_ratio_bounds = 1,
   diffusion_bounds = 0,
-  constant_tail_probability = 1e-08
+  constant_tail_probability = 1e-08,
+  movement_penalty = 0
 )
 }
 \value{

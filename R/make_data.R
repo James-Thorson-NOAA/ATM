@@ -8,8 +8,9 @@
 #' @author James Thorson
 #' @export
 make_data <-
-function( X_guyk,
-      Z_guyl,
+function( Cov_stars,
+      formula_taxis,
+      formula_diffusion,
       coords_gz,
       #t_uy,
       uy_tz = NULL,
@@ -26,6 +27,10 @@ function( X_guyk,
       diffusion_bounds = 0,
       constant_tail_probability = 1e-8,
       movement_penalty = 0 ){
+
+  #
+  X_guyk = format_covariates( Cov_stars, formula=formula_taxis, remove_intercept=TRUE )$Data_guyk
+  Z_guyl = format_covariates( Cov_stars, formula=formula_diffusion, remove_intercept=FALSE )$Data_guyk
 
   # Check for issues
   if( !is.na(log2steps) && abs(log2steps)==Inf ) stop("`log2steps` cannot be Inf")

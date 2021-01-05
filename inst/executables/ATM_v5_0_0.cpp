@@ -157,6 +157,8 @@ Type objective_function<Type>::operator() ()
   int n_j = b_j.size();
   int n_f = b_f.size();
   int n_s = ln_d_st.col(0).size();
+  // m is used for advection-fields
+  // r is used for flux
 
   // Transform inputs
   //vector<Type> sigma2_l = exp( 2.0 * ln_sigma_l );

@@ -8,8 +8,9 @@
 #' @author James Thorson
 #' @export
 fitTMB <-
-function( X_guyk,
-      Z_guyl,
+function( Cov_stars,
+      formula_taxis,
+      formula_diffusion,
       coords_gz,
       #t_uy,
       satellite_iz = NULL,
@@ -49,8 +50,10 @@ function( X_guyk,
     compile_dir = run_dir
     use_REML = TRUE
   }
-  data_list = make_data( X_guyk = X_guyk,
-    Z_guyl = Z_guyl,
+
+  data_list = make_data( Cov_stars = Cov_stars,
+    formula_taxis = formula_taxis,
+    formula_diffusion = formula_diffusion,
     coords_gz = coords_gz,
     uy_tz = uy_tz,
     satellite_iz = satellite_iz,
@@ -109,7 +112,7 @@ function( X_guyk,
   }
   if( cpp_version %in% c("ATM_v4_0_0") ){
     param_list = list(
-      "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(Z_guyl)[4]-1) ),
+      "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(data_list$Z_guyl)[4]-1) ),
       "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
       "ln_H_input" = c(0,0),
       "ln_kappa" = -3,
@@ -123,7 +126,7 @@ function( X_guyk,
   }
   if( cpp_version %in% c("ATM_v5_0_0") ){
     param_list = list(
-      "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(Z_guyl)[4]-1) ),
+      "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(data_list$Z_guyl)[4]-1) ),
       "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
       "ln_H_input" = c(0,0),
       "ln_kappa" = -3,
@@ -171,22 +174,25 @@ function( X_guyk,
   # Map off fishery measurement-error if no fishery data
   if( length(data_list$b_f) == 0 ){
     if("ln_CV"%in%names(param_list)) map$ln_CV = factor(NA)
+  }
+  # Map of catchability ratio if no fishery or no survey
+  if( length(data_list$b_f)==0 | length(data_list$b_j)==0){
     if("lambda"%in%names(param_list)) map$lambda = factor(NA)
   }
   # Map off density effects for the intercept
-  if( any(dimnames(X_guyk)[[4]]=="(Intercept)") ){
-    map$alpha_logit_ratio_k[which(dimnames(X_guyk)[[4]]=="(Intercept)")] = NA
+  if( any(dimnames(data_list$X_guyk)[[4]]=="(Intercept)") ){
+    map$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = NA
   }
   # Map off constants in X_guyk
-  turnoff_k = apply( X_guyk, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+  turnoff_k = apply( data_list$X_guyk, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
   if( any(turnoff_k) ){
     map$alpha_logit_ratio_k = 1:length(param_list$alpha_logit_ratio_k)
     map$alpha_logit_ratio_k[which(turnoff_k)] = NA
     map$alpha_logit_ratio_k = factor(map$alpha_logit_ratio_k)
-    param_list$alpha_logit_ratio_k[which(dimnames(X_guyk)[[4]]=="(Intercept)")] = 0
+    param_list$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = 0
   }
   # Map off constants in Z_guyl except first term
-  turnoff_l = apply( Z_guyl, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+  turnoff_l = apply( data_list$Z_guyl, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
   turnoff_l[1] = FALSE
   if( any(turnoff_l) ){
     map$ln_sigma_l = 1:length(param_list$ln_sigma_l)
@@ -256,10 +262,15 @@ function( X_guyk,
   }
 
   # Extract stuff
-  class(Return) = "fitTMB"
   Return$Report = Return$Obj$report( )
 
+  # Add stuff for effects package integration
+  Return$Data_zp = format_covariates( Cov_stars, formula=formula_taxis )$Data_zp
+  Return$formula_taxis = formula_taxis
+  Return$formula_diffusion = formula_diffusion
+
   # return
+  class(Return) = "fitTMB"
   return(Return)
 }
 
@@ -447,5 +458,19 @@ summary.fitTMB <- function(x, what="survey_residuals", n_samples=250,
 
   # diagnostic plots
   return(invisible(ans))
+}
+
+#' Get formula
+#'
+#' \code{formula.fitTMB} is necessary for \code{effects::predictorEffects}
+#'
+#' @method formula fitTMB
+#' @export
+formula.fitTMB = function(x){
+  #if(which_formula=="taxis" | !exists(which_formula)){
+    return(x$formula_taxis)
+  #}else{
+  #  stop("No `which_formula` in global environment")
+  #}
 }
 

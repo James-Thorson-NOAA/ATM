@@ -4,7 +4,15 @@
 \alias{predict.fitTMB}
 \title{Print parameter estimates}
 \usage{
-\method{predict}{fitTMB}(x, newdata, origdata = NULL, prediction_type = 1, seed = NULL)
+\method{predict}{fitTMB}(
+  x,
+  newdata,
+  formula,
+  varname = "alpha_k",
+  origdata = NULL,
+  prediction_type = 1,
+  seed = NULL
+)
 }
 \arguments{
 \item{x}{Output from \code{\link{fitTMB}}}

@@ -5,18 +5,21 @@
 \title{Fit ATM model in TMB}
 \usage{
 fitTMB(
-  X_guyk,
+  Cov_stars,
+  formula_taxis,
+  formula_diffusion,
   coords_gz,
   satellite_iz = NULL,
   conventional_hz = NULL,
   survey_jz = NULL,
+  fishery_fz = NULL,
   E_guy = NULL,
   uy_tz = NULL,
   duration_u = NULL,
   cpp_version = FishStatsUtils::get_latest_version(package = "ATM"),
   tmb_dir = system.file("executables", package = "ATM"),
   run_dir = getwd(),
-  compile_dir = run_dir,
+  compile_dir = tmb_dir,
   log2steps = 20,
   sigma2 = 4^2,
   spde_aniso = NULL,
@@ -26,6 +29,7 @@ fitTMB(
   start_param_list = NULL,
   alpha_ratio_bounds = 1,
   diffusion_bounds = 0,
+  movement_penalty = 0,
   constant_tail_probability = 1e-08,
   ...
 )

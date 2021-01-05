@@ -12,6 +12,7 @@ plot_partial_dependence(
   width = 4,
   height = 4,
   probs = c(0.025, 0.975),
+  bounds_type = "shading",
   ...
 )
 }
