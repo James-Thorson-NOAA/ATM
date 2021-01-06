@@ -37,20 +37,6 @@ function( Cov_stars,
       constant_tail_probability = 1e-8,
       ... ){
 
-  # Build data
-  if( FALSE ){
-    coords_gz = loc_gz@coords
-    duration_u = NULL
-    uy_tz = NULL
-    log2steps = 0
-    cpp_version = "ATM_v3_0_0"
-    sigma2 = 0.1
-    tmb_dir = "C:/Users/James.Thorson/Desktop/Git/ATM/inst/executables/"
-    run_dir = "C:/Users/James.Thorson/Desktop/Work files/Collaborations/2020 -- Advection-taxis movement/"
-    compile_dir = run_dir
-    use_REML = TRUE
-  }
-
   data_list = make_data( Cov_stars = Cov_stars,
     formula_taxis = formula_taxis,
     formula_diffusion = formula_diffusion,
@@ -212,60 +198,44 @@ function( Cov_stars,
 
   # Return inputs
   Return = list( "data_list"=data_list, "param_list"=param_list, "random"=random )
-  if( build_model == FALSE ){
-    return(Return)
+
+  # Optionally build and run
+  if( build_model == TRUE ){
+    # Compile
+    # dyn.unload( paste0(compile_dir,"/",TMB::dynlib(TMB:::getUserDLL())) )
+    file.copy( from=paste0(tmb_dir,"/",cpp_version,".cpp"), to=paste0(compile_dir,"/",cpp_version,".cpp"), overwrite=FALSE)
+    origwd = getwd()
+    on.exit(setwd(origwd),add=TRUE)
+    setwd( compile_dir )
+    TMB::compile( paste0(cpp_version,".cpp"), CPPFLAGS="-Wno-ignored-attributes" )
+
+    # Build object
+    dyn.load( paste0(compile_dir,"/",TMB::dynlib(cpp_version)) ) # random=random,
+    Return$Obj = TMB::MakeADFun( data=data_list, parameters=param_list, hessian=FALSE, map=map, random=random, DLL=cpp_version )  #
+    # Report = Obj$report()
+
+    # Print number of parameters
+    ThorsonUtilities::list_parameters( Return$Obj )
+
+    # Optionally run model
+    if( run_model == TRUE ){
+      Return$Obj$env$beSilent()
+      Return$parameter_estimates = TMBhelper::fit_tmb( Return$Obj, control=list(trace=1),
+        savedir=run_dir, getReportCovariance=TRUE, ... ) #
+      Return$parhat = Return$Obj$env$parList( Return$parameter_estimates$par )
+    }
+
+    # Extract stuff
+    Return$Report = Return$Obj$report( )
   }
-
-  # Compile
-  # dyn.unload( paste0(compile_dir,"/",TMB::dynlib(TMB:::getUserDLL())) )
-  file.copy( from=paste0(tmb_dir,"/",cpp_version,".cpp"), to=paste0(compile_dir,"/",cpp_version,".cpp"), overwrite=FALSE)
-  origwd = getwd()
-  on.exit(setwd(origwd),add=TRUE)
-  setwd( compile_dir )
-  TMB::compile( paste0(cpp_version,".cpp"), CPPFLAGS="-Wno-ignored-attributes" )
-
-  # Build object
-  dyn.load( paste0(compile_dir,"/",TMB::dynlib(cpp_version)) ) # random=random,
-  Return$Obj = TMB::MakeADFun( data=data_list, parameters=param_list, hessian=FALSE, map=map, random=random, DLL=cpp_version )  #
-  # Report = Obj$report()
-
-  # Print number of parameters
-  ThorsonUtilities::list_parameters( Return$Obj )
-
-  # Optimize
-  if( FALSE ){
-    obj = Return$Obj
-    fn=obj$fn
-    gr=obj$gr
-    startpar=NULL
-    lower=-Inf
-    upper=Inf
-    getsd=TRUE
-    control=control=list(trace=1)
-    bias.correct=FALSE
-    bias.correct.control=list(sd=FALSE, split=NULL, nsplit=NULL, vars_to_correct=NULL)
-    savedir=run_dir
-    loopnum=3
-    newtonsteps=0
-    n=Inf
-    getReportCovariance=FALSE
-    getJointPrecision=FALSE
-    getHessian=FALSE
-    quiet=FALSE
-    List = list()
-  }
-  if( run_model == TRUE ){
-    Return$Obj$env$beSilent()
-    Return$parameter_estimates = TMBhelper::fit_tmb( Return$Obj, control=list(trace=1),
-      savedir=run_dir, getReportCovariance=TRUE, ... ) #
-    Return$parhat = Return$Obj$env$parList( Return$parameter_estimates$par )
-  }
-
-  # Extract stuff
-  Return$Report = Return$Obj$report( )
 
   # Add stuff for effects package integration
-  Return$Data_zp = format_covariates( Cov_stars, formula=formula_taxis )$Data_zp
+  Data_zp = cbind( format_covariates( Cov_stars, formula=formula_taxis )$Data_zp, "dummy_zeroes"=0)
+  formula_taxis_full = update.formula(formula_taxis, dummy_zeroes~.+0)
+  formula_diffusion_full = update.formula(formula_diffusion, dummy_zeroes~.+0)
+  call_taxis = lm( formula_taxis_full, data=Data_zp)$call
+  call_diffusion = lm( formula_diffusion_full, data=Data_zp)$call
+  Return$effects = list( Data_zp=Data_zp, call_taxis=call_taxis, call_diffusion=call_diffusion )
   Return$formula_taxis = formula_taxis
   Return$formula_diffusion = formula_diffusion
 
