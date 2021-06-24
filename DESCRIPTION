@@ -11,12 +11,13 @@ Authors@R:
              comment = c(ORCID = "0000-0001-7415-1010"))
     )
 Imports:
+    DHARMa
+Depends:
+    R (>= 3.1.0),
+    effects (>= 4.0-1),
     Matrix,
     raster,
     stars
-Depends:
-    R (>= 3.1.0),
-    effects (>= 4.0-1)
 URL: http://github.com/James-Thorson-NOAA/ATM
 BugReports: http://github.com/James-Thorson-NOAA/ATM/issues
 License: GPL-3

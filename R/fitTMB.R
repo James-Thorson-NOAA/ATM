@@ -110,7 +110,7 @@ function( Cov_stars,
       "ln_d_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
     )
   }
-  if( cpp_version %in% c("ATM_v5_0_0") ){
+  if( cpp_version %in% c("ATM_v6_0_0","ATM_v5_0_0") ){
     param_list = list(
       "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(data_list$Z_guyl)[4]-1) ),
       "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
@@ -372,51 +372,64 @@ simulate.fitTMB <- function(x, random_seed=NULL, ...)
 #' @return NULL
 #' @method summary fitTMB
 #' @export
-summary.fitTMB <- function(x, what="survey_residuals", n_samples=250,
-  working_dir=NULL, ...)
+summary.fitTMB <-
+function( x,
+          what="survey_residuals",
+          n_samples=250,
+          working_dir=NULL, ...)
 {
   ans = NULL
 
   # Residuals
-  if( tolower(what) == "survey_residuals" ){
+  if( tolower(what) %in% c("survey_residuals","fishery_residuals") ){
     # extract objects
     Obj = x$Obj
 
-    b_jz = matrix(NA, nrow=length(x$data_list$b_j), ncol=n_samples)
     message( "Sampling from the distribution of data conditional on estimated fixed and random effects" )
-    for( zI in 1:n_samples ){
-      if( zI%%max(1,floor(n_samples/10)) == 0 ){
-        message( "  Finished sample ", zI, " of ",n_samples )
-      }
-      b_jz[,zI] = Obj$simulate()$b_j
+    if( what == "survey_residuals" ){
+      x_z = x$data_list$b_j
+      xhat_z = fit$Report$bhat_j
+      x_zr = matrix(NA, nrow=length(x$data_list$b_j), ncol=n_samples)
+      varname = "b_j"
     }
-    if( any(is.na(b_jz)) ){
+    if( what == "fishery_residuals" ){
+      x_z = x$data_list$b_f
+      xhat_z = fit$Report$bhat_f
+      x_zr = matrix(NA, nrow=length(x$data_list$b_f), ncol=n_samples)
+      varname = "b_f"
+    }
+    for( rI in 1:n_samples ){
+      if( rI%%max(1,floor(n_samples/10)) == 0 ){
+        message( "  Finished sample ", rI, " of ",n_samples )
+      }
+      x_zr[,rI] = Obj$simulate()[[varname]]
+    }
+    if( any(is.na(x_zr)) ){
       stop("Check simulated residuals for NA values")
     }
 
     # Run DHARMa
-    dharmaRes = DHARMa::createDHARMa(simulatedResponse=b_jz, # + 1e-10*array(rnorm(prod(dim(b_iz))),dim=dim(b_iz)),
-      observedResponse=x$data_list$b_j,
-      fittedPredictedResponse=fit$Report$bhat_j,
-      integer=FALSE)
+    dharmaRes = DHARMa::createDHARMa(simulatedResponse = x_zr, # + 1e-10*array(rnorm(prod(dim(b_iz))),dim=dim(b_iz)),
+      observedResponse = x_z,
+      fittedPredictedResponse = xhat_z,
+      integer = FALSE)
 
     # Calculate probability-integral-transform (PIT) residuals
     message( "Substituting probability-integral-transform (PIT) residuals for DHARMa-calculated residuals" )
-    prop_lessthan_j = apply( b_jz<outer(x$data_list$b_j,rep(1,n_samples)),
+    prop_lessthan_j = apply( x_zr<outer(x_z,rep(1,n_samples)),
       MARGIN=1,
       FUN=mean )
-    prop_lessthanorequalto_j = apply( b_jz<=outer(x$data_list$b_j,rep(1,n_samples)),
+    prop_lessthanorequalto_j = apply( x_zr<=outer(x_z,rep(1,n_samples)),
       MARGIN=1,
       FUN=mean )
     PIT_j = runif(min=prop_lessthan_j, max=prop_lessthanorequalto_j, n=length(prop_lessthan_j) )
-    # cbind( "Difference"=dharmaRes$scaledResiduals - PIT_i, "PIT"=PIT_i, "Original"=dharmaRes$scaledResiduals, "b_i"=x$data_list$b_i )
     dharmaRes$scaledResiduals = PIT_j
 
     # do plot
     if( is.null(working_dir) ){
       plot(dharmaRes, ...)
     }else if(!is.na(working_dir) ){
-      png(file=paste0(working_dir,"quantile_residuals.png"), width=8, height=4, res=200, units='in')
+      png(file=paste0(working_dir,"quantile_",what,".png"), width=8, height=4, res=200, units='in')
         plot(dharmaRes, ...)
       dev.off()
     }

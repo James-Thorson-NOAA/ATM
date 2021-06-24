@@ -13,7 +13,7 @@ function( mat_gg, log2steps=0 ){
     return( Matrix::expm(mat_gg) )
   }else{
     mat_gg = diag(nrow(mat_gg)) + mat_gg / (2^log2steps)
-    for(stepI in 1:log2steps){
+    for(stepI in seq(1,log2steps,length=log2steps)){
       mat_gg = mat_gg %*% mat_gg
     }
     return( mat_gg )

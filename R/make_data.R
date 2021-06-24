@@ -80,7 +80,7 @@ function( Cov_stars,
   n_t = nrow(uy_tz)
 
   # Rescale E_guy to be a proportion by location in each season-year
-  E_guy = E_guy / outer( rep(1,n_g), apply(E_guy,MARGIN=2:3,FUN=sum) )
+  Eprime_guy = E_guy / outer( rep(1,n_g), apply(E_guy,MARGIN=2:3,FUN=sum) )
 
   # Calculate adjacency matrix
   distance_gg = as.matrix(dist(coords_gz[,c('x','y')]))
@@ -114,7 +114,7 @@ function( Cov_stars,
       "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
       "X_guyk"=X_guyk, "Z_guyl"=Z_guyl, "uy_tz"=uy_tz-1,
       "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
-      "survey_jz"=survey_jz, "E_guy"=E_guy, "duration_u"=duration_u, "A_gg"=Adense_gg,
+      "survey_jz"=survey_jz, "E_guy"=Eprime_guy, "duration_u"=duration_u, "A_gg"=Adense_gg,
       "spde_aniso"=spde_aniso, "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1 )
   }
   if( cpp_version %in% c("ATM_v5_0_0") ){
@@ -124,7 +124,18 @@ function( Cov_stars,
       "X_guyk"=X_guyk, "Z_guyl"=Z_guyl, "uy_tz"=uy_tz-1,
       "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
       "survey_jz"=survey_jz, "fishery_fz"=fishery_fz,
-      "E_guy"=E_guy, "duration_u"=duration_u, "A_gg"=Adense_gg, "spde_aniso"=spde_aniso,
+      "E_guy"=Eprime_guy, "duration_u"=duration_u, "A_gg"=Adense_gg, "spde_aniso"=spde_aniso,
+      "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1,
+      "b_f"=fishery_fz[,'b_f'], "t_f"=fishery_fz[,'t_f']-1, "g_f"=fishery_fz[,'g_f']-1 )
+  }
+  if( cpp_version %in% c("ATM_v6_0_0") ){
+    data_list = list( "log2steps"=log2steps,"alpha_ratio_bounds"=alpha_ratio_bounds,
+      "diffusion_bounds"=diffusion_bounds, "movement_penalty"=movement_penalty,
+      "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
+      "X_guyk"=X_guyk, "Z_guyl"=Z_guyl, "uy_tz"=uy_tz-1,
+      "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
+      "survey_jz"=survey_jz, "fishery_fz"=fishery_fz,
+      "Eprime_guy"=Eprime_guy, "duration_u"=duration_u, "A_gg"=Adense_gg, "spde_aniso"=spde_aniso,
       "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1,
       "b_f"=fishery_fz[,'b_f'], "t_f"=fishery_fz[,'t_f']-1, "g_f"=fishery_fz[,'g_f']-1 )
   }

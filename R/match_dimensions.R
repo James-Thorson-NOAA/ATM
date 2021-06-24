@@ -27,7 +27,9 @@ match_dimensions = function( X_guyk,
   mindist_g = apply( dist_gg, MARGIN=1, FUN=min, na.rm=TRUE )
 
   #
-  include_i = ifelse( NN$nn.dists[,1] < max_distance_ratio*mean(mindist_g), TRUE, FALSE )
+  distance_threshold = max_distance_ratio*mean(mindist_g)
+  include_i = ifelse( NN$nn.dists[,1] < distance_threshold, TRUE, FALSE )
+  message("distance_threshold: ", distance_threshold)
 
   #
   indices_i = data.frame( "g_i"=g_i, "u_i"=u_i, "y_i"=y_i, "t_i"=t_i, "include_i"=include_i )

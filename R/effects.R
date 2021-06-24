@@ -3,11 +3,9 @@
 #'
 #' @title Adapts package \code{effects}
 #'
-#' @method Effect fitTMB
+#' @rawNamespace S3method(effects::Effect, fitTMB)
 #' @export
 Effect.fitTMB <- function (focal.predictors, mod, which_formula="taxis", ...) {
-
-  #assign("which_formula", 100, envir=.GlobalEnv)
 
   # Basic
   if( which_formula=="taxis" ){
