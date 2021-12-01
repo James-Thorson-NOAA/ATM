@@ -35,6 +35,7 @@ function( Cov_stars,
       diffusion_bounds = 0,
       movement_penalty = 0,
       constant_tail_probability = 1e-8,
+      map = NULL,
       ... ){
 
   data_list = make_data( Cov_stars = Cov_stars,
@@ -137,54 +138,56 @@ function( Cov_stars,
   }
 
   # Which map
-  map = NULL
-  # Map off betas for years without survey data
-  if( "Beta_t" %in% names(param_list) ){
-    Beta_t = 1:length(param_list$Beta_t) - 1
-    Beta_t = ifelse( Beta_t %in% c(data_list$t_j,data_list$t_f), Beta_t, NA )
-    map$Beta_t = factor(Beta_t)
-  }
-  # Map off density parameters if no survey data AND no fishery
-  if( length(data_list$b_j)==0 & length(data_list$b_f)==0 ){
-    if("ln_H_input"%in%names(param_list)) map$ln_H_input = factor(c(NA,NA))
-    if("ln_kappa"%in%names(param_list)) map$ln_kappa = factor(NA)
-    if("ln_sigma_epsilon0"%in%names(param_list)) map$ln_sigma_epsilon0 = factor(NA)
-    if("ln_sigma_epsilon"%in%names(param_list)) map$ln_sigma_epsilon = factor(NA)
-    if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
-  }
-  # Map off survey measurement-error if no survey data
-  if( length(data_list$b_j) == 0 ){
-    if("ln_phi"%in%names(param_list)) map$ln_phi = factor(NA)
-    if("power_prime"%in%names(param_list)) map$power_prime = factor(NA)
-  }
-  # Map off fishery measurement-error if no fishery data
-  if( length(data_list$b_f) == 0 ){
-    if("ln_CV"%in%names(param_list)) map$ln_CV = factor(NA)
-  }
-  # Map of catchability ratio if no fishery or no survey
-  if( length(data_list$b_f)==0 | length(data_list$b_j)==0){
-    if("lambda"%in%names(param_list)) map$lambda = factor(NA)
-  }
-  # Map off density effects for the intercept
-  if( any(dimnames(data_list$X_guyk)[[4]]=="(Intercept)") ){
-    map$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = NA
-  }
-  # Map off constants in X_guyk
-  turnoff_k = apply( data_list$X_guyk, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
-  if( any(turnoff_k) ){
-    map$alpha_logit_ratio_k = 1:length(param_list$alpha_logit_ratio_k)
-    map$alpha_logit_ratio_k[which(turnoff_k)] = NA
-    map$alpha_logit_ratio_k = factor(map$alpha_logit_ratio_k)
-    param_list$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = 0
-  }
-  # Map off constants in Z_guyl except first term
-  turnoff_l = apply( data_list$Z_guyl, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
-  turnoff_l[1] = FALSE
-  if( any(turnoff_l) ){
-    map$ln_sigma_l = 1:length(param_list$ln_sigma_l)
-    map$ln_sigma_l[which(turnoff_l)] = NA
-    map$ln_sigma_l = factor(map$ln_sigma_l)
-    param_list$ln_sigma_l[which(turnoff_l)] = 0
+  #map = NULL
+  if( !is.null(map) ){
+    # Map off betas for years without survey data
+    if( "Beta_t" %in% names(param_list) ){
+      Beta_t = 1:length(param_list$Beta_t) - 1
+      Beta_t = ifelse( Beta_t %in% c(data_list$t_j,data_list$t_f), Beta_t, NA )
+      map$Beta_t = factor(Beta_t)
+    }
+    # Map off density parameters if no survey data AND no fishery
+    if( length(data_list$b_j)==0 & length(data_list$b_f)==0 ){
+      if("ln_H_input"%in%names(param_list)) map$ln_H_input = factor(c(NA,NA))
+      if("ln_kappa"%in%names(param_list)) map$ln_kappa = factor(NA)
+      if("ln_sigma_epsilon0"%in%names(param_list)) map$ln_sigma_epsilon0 = factor(NA)
+      if("ln_sigma_epsilon"%in%names(param_list)) map$ln_sigma_epsilon = factor(NA)
+      if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
+    }
+    # Map off survey measurement-error if no survey data
+    if( length(data_list$b_j) == 0 ){
+      if("ln_phi"%in%names(param_list)) map$ln_phi = factor(NA)
+      if("power_prime"%in%names(param_list)) map$power_prime = factor(NA)
+    }
+    # Map off fishery measurement-error if no fishery data
+    if( length(data_list$b_f) == 0 ){
+      if("ln_CV"%in%names(param_list)) map$ln_CV = factor(NA)
+    }
+    # Map of catchability ratio if no fishery or no survey
+    if( length(data_list$b_f)==0 | length(data_list$b_j)==0){
+      if("lambda"%in%names(param_list)) map$lambda = factor(NA)
+    }
+    # Map off density effects for the intercept
+    if( any(dimnames(data_list$X_guyk)[[4]]=="(Intercept)") ){
+      map$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = NA
+    }
+    # Map off constants in X_guyk
+    turnoff_k = apply( data_list$X_guyk, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+    if( any(turnoff_k) ){
+      map$alpha_logit_ratio_k = 1:length(param_list$alpha_logit_ratio_k)
+      map$alpha_logit_ratio_k[which(turnoff_k)] = NA
+      map$alpha_logit_ratio_k = factor(map$alpha_logit_ratio_k)
+      param_list$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = 0
+    }
+    # Map off constants in Z_guyl except first term
+    turnoff_l = apply( data_list$Z_guyl, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+    turnoff_l[1] = FALSE
+    if( any(turnoff_l) ){
+      map$ln_sigma_l = 1:length(param_list$ln_sigma_l)
+      map$ln_sigma_l[which(turnoff_l)] = NA
+      map$ln_sigma_l = factor(map$ln_sigma_l)
+      param_list$ln_sigma_l[which(turnoff_l)] = 0
+    }
   }
 
   #
