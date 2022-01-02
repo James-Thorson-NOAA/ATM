@@ -49,7 +49,7 @@ bool isNA(Type x){
 // Simulate from tweedie
 // Adapted from tweedie::rtweedie function in R
 template<class Type>
-Type rtweedie( Type mu, Type phi, Type power){
+Type rTweedie( Type mu, Type phi, Type power){
   Type lambda = pow(mu, Type(2.0) - power) / (phi * (Type(2.0) - power));
   Type alpha = (Type(2.0) - power) / (Type(1.0) - power);
   Type gam = phi * (power - Type(1.0)) * pow(mu, power - Type(1.0));
@@ -397,7 +397,7 @@ Type objective_function<Type>::operator() ()
       bhat_j(j) = exp(ln_d_st(g_j(j),t_j(j)));
       nll_j(j) = -1 * dtweedie( b_j(j), bhat_j(j), phi, power, true );
       SIMULATE{
-        b_j(j) = rtweedie( bhat_j(j), phi, power );   // Defined above
+        b_j(j) = rTweedie( bhat_j(j), phi, power );   // Defined above
       }
       REPORT( bhat_j );
     }

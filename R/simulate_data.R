@@ -81,7 +81,10 @@ function( fit,
     }
 
     # Sample from joint distribution
-    newpar = rmvnorm_prec( mu=Obj$env$last.par.best, prec=fit$parameter_estimates$SD$jointPrecision, n.sims=1, random_seed=random_seed )[,1]
+    newpar = rmvnorm_prec( mu=Obj$env$last.par.best,
+                           prec=fit$parameter_estimates$SD$jointPrecision,
+                           n.sims=1,
+                           random_seed=random_seed )[,1]
 
     # Simulate
     Return = Obj$simulate( par=newpar, complete=TRUE )
