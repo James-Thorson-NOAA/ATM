@@ -139,7 +139,7 @@ function( Cov_stars,
 
   # Which map
   #map = NULL
-  if( !is.null(map) ){
+  if( is.null(map) ){
     # Map off betas for years without survey data
     if( "Beta_t" %in% names(param_list) ){
       Beta_t = 1:length(param_list$Beta_t) - 1
@@ -200,7 +200,7 @@ function( Cov_stars,
   #random = NULL
 
   # Return inputs
-  Return = list( "data_list"=data_list, "param_list"=param_list, "random"=random )
+  Return = list( "data_list"=data_list, "param_list"=param_list, "random"=random, "map"=map )
 
   # Optionally build and run
   if( build_model == TRUE ){
