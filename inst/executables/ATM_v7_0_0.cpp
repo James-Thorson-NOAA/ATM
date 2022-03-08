@@ -348,6 +348,7 @@ Type objective_function<Type>::operator() ()
   array<Type> dhat_st( n_s, n_t );
   dhat_st.setZero();
   vector<Type> tmp_s( n_s );
+  tmp_s.setZero();
   for( int t=0; t<n_t; t++ ){
     if( t==0 ){
       for( int g=0; g<n_g; g++ ){
@@ -359,6 +360,8 @@ Type objective_function<Type>::operator() ()
       dtilda_st.col(0) = (ln_d_st.col(0) - log(dhat_st.col(0))) / exp(ln_sigma_epsilon0);
       nll_t(0) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon0) )( ln_d_st.col(0) - log(dhat_st.col(0)) );
       if( simulate_random == 1 ){
+//        dtilda_st.col(0) = tmp_s;
+//        ln_d_st.col(0) = tmp_s;
         SIMULATE{
           gmrf_Q.simulate(tmp_s);
           dtilda_st.col(0) = tmp_s * exp(ln_sigma_epsilon0) / exp(logtau);
@@ -376,6 +379,8 @@ Type objective_function<Type>::operator() ()
       dtilda_st.col(t) = (ln_d_st.col(t) - log(dhat_st.col(t))) / exp(ln_sigma_epsilon);
       nll_t(t) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon) )( ln_d_st.col(t) - log(dhat_st.col(t)) );
       if( simulate_random == 1 ){
+//        dtilda_st.col(t) = tmp_s;
+//        ln_d_st.col(t) = tmp_s;
         SIMULATE{
           gmrf_Q.simulate(tmp_s);
           dtilda_st.col(t) = tmp_s * exp(ln_sigma_epsilon) / exp(logtau);
@@ -387,6 +392,7 @@ Type objective_function<Type>::operator() ()
   REPORT( dhat_st );
   REPORT( dtilda_st );
   REPORT( ln_d_st );  // Report in case ATM used as operating model
+  REPORT( tmp_s );
 
   // Log-likelihood for survey data
   Type phi = exp(ln_phi);
