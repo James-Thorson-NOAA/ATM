@@ -399,6 +399,10 @@ function( x,
     # extract objects
     Obj = x$Obj
 
+    # Revert settings when done
+    revert_settings = function(simulate_random){Obj$env$data$simulate_random = simulate_random}
+    on.exit( revert_settings(simulate_random) )
+
     message( "Sampling from the distribution of data conditional on estimated fixed and random effects" )
     if( what == "survey_residuals" ){
       x_z = x$data_list$b_j

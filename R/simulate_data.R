@@ -68,7 +68,7 @@ function( fit,
   if(length(parvec)!=length(fit$Obj$env$last.par.best)) stop("Check supplied `par`")
 
   # Revert settings when done
-  revert_settings = function(simulate_random_effects){Obj$env$data$simulate_random = simulate_random}
+  revert_settings = function(simulate_random){Obj$env$data$simulate_random = simulate_random}
   on.exit( revert_settings(simulate_random) )
 
   # Simulate conditional upon fixed and random effect estimates
