@@ -139,6 +139,18 @@ function( Cov_stars,
       "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1,
       "b_f"=fishery_fz[,'b_f'], "t_f"=fishery_fz[,'t_f']-1, "g_f"=fishery_fz[,'g_f']-1 )
   }
+  if( cpp_version %in% c("ATM_v7_0_0") ){
+    data_list = list( "log2steps"=log2steps,"alpha_ratio_bounds"=alpha_ratio_bounds,
+      "diffusion_bounds"=diffusion_bounds, "movement_penalty"=movement_penalty,
+      "constant_tail_probability"=constant_tail_probability, "report_early"=FALSE,
+      "simulate_random" = 0,
+      "X_guyk"=X_guyk, "Z_guyl"=Z_guyl, "uy_tz"=uy_tz-1,
+      "satellite_iz"=satellite_iz-1, "conventional_hz"=conventional_hz-1,
+      "survey_jz"=survey_jz, "fishery_fz"=fishery_fz,
+      "Eprime_guy"=Eprime_guy, "duration_u"=duration_u, "A_gg"=Adense_gg, "spde_aniso"=spde_aniso,
+      "b_j"=survey_jz[,'b_j'], "t_j"=survey_jz[,'t_j']-1, "g_j"=survey_jz[,'g_j']-1,
+      "b_f"=fishery_fz[,'b_f'], "t_f"=fishery_fz[,'t_f']-1, "g_f"=fishery_fz[,'g_f']-1 )
+  }
 
   # return
   class(data_list) = "make_data"

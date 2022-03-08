@@ -111,7 +111,7 @@ function( Cov_stars,
       "ln_d_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
     )
   }
-  if( cpp_version %in% c("ATM_v6_0_0","ATM_v5_0_0") ){
+  if( cpp_version %in% c("ATM_v7_0_0","ATM_v6_0_0","ATM_v5_0_0") ){
     param_list = list(
       "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(data_list$Z_guyl)[4]-1) ),
       "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
@@ -269,18 +269,22 @@ print.fitTMB <- function(x, ...)
 #' Predict habitat preference
 #'
 #' @title Print parameter estimates
+#'
+#' @inheritParams simulate_data
 #' @param x Output from \code{\link{fitTMB}}
 #' @param ... Not used
+#'
 #' @return NULL
 #' @method predict fitTMB
 #' @export
-predict.fitTMB <- function(x,
+predict.fitTMB <- function( x,
                newdata,
                formula,
                varname = "alpha_k",
                origdata = NULL,
                prediction_type = 1,
-               seed = NULL )
+               seed = NULL,
+               parvec = x$Obj$env$last.par.best )
 {
   #message("Running `predict.fitTMB`")
   if( !is.null(origdata) ){
@@ -294,12 +298,19 @@ predict.fitTMB <- function(x,
 
   # MLE for covariance predictions
   if( prediction_type==1 ){
-    if( "parameter_estimates" %in% names(x) ){
-      if(varname=="alpha_k") var_vec = c( 0, x$Report$alpha_k )
-      if(varname=="ln_sigma_l") var_vec = x$Report$ln_sigma_l
-    }else{
-      stop("`parameter_estimates` not available in `fitTMB`\n")
-    }
+    #if( "parameter_estimates" %in% names(x) ){
+      if( all(parvec==x$Obj$env$last.par.best) ){
+        Report = x$Report
+      }else{
+        #x$Obj$retape()
+        x$Obj$env$data$report_early = 1
+        Report = x$Obj$report( parvec )
+      }
+      if(varname=="alpha_k") var_vec = c( 0, Report$alpha_k )
+      if(varname=="ln_sigma_l") var_vec = Report$ln_sigma_l
+    #}else{
+    #  stop("`parameter_estimates` not available in `fitTMB`\n")
+    #}
   }
   if( prediction_type==2 ){
     if( "SD" %in% names(x$parameter_estimates) ){

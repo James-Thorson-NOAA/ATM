@@ -31,6 +31,7 @@ fitTMB(
   diffusion_bounds = 0,
   movement_penalty = 0,
   constant_tail_probability = 1e-08,
+  map = NULL,
   ...
 )
 }

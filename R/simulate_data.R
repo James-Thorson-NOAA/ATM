@@ -18,6 +18,10 @@
 #' and new data conditional upon these values.
 #' }
 #' @param random_seed integer passed to \code{set.seed}, where the default value \code{random_seed=NULL} resets the random-number seed.
+#' @param parvec vector of parameters to use as fixed values (or use as mean when simulating new parameters),
+#'        to be used when simulating new data.
+#'        default \code{par=fit$Obj$env$last.par.best} uses the best previous value,
+#'        i.e., MLE if the model is optimized.
 #'
 
 #' @return Report object containing new data and population variables including
@@ -31,7 +35,8 @@
 simulate_data <-
 function( fit,
           type = 1,
-          random_seed = NULL ){
+          random_seed = NULL,
+          parvec = fit$Obj$env$last.par.best ){
 
   # Sample from GMRF using sparse precision
   rmvnorm_prec <- function(mu, prec, n.sims, random_seed ) {
@@ -59,17 +64,26 @@ function( fit,
 
   # Extract stuff
   Obj = fit$Obj
+  simulate_random = Obj$env$data$simulate_random
+  if(length(parvec)!=length(fit$Obj$env$last.par.best)) stop("Check supplied `par`")
+
+  # Revert settings when done
+  revert_settings = function(simulate_random_effects){Obj$env$data$simulate_random = simulate_random}
+  on.exit( revert_settings(simulate_random) )
 
   # Simulate conditional upon fixed and random effect estimates
   if( type==1 ){
     # Change and revert settings
     set.seed(random_seed)
-    Return = Obj$simulate( complete=TRUE )
+    Obj$env$data$simulate_random = 0
+    Return = Obj$simulate( par=parvec, complete=TRUE )
   }
 
   # Simulate new random effects and data
   if( type==2 ){
-    stop("Not implemented")
+    set.seed(random_seed)
+    Obj$env$data$simulate_random = 1
+    Return = Obj$simulate( par=parvec, complete=TRUE )
   }
 
   # Simulate from predictive distribution of fixed AND random effects, and then new data
@@ -81,24 +95,28 @@ function( fit,
     }
 
     # Sample from joint distribution
-    newpar = rmvnorm_prec( mu=Obj$env$last.par.best,
-                           prec=fit$parameter_estimates$SD$jointPrecision,
-                           n.sims=1,
-                           random_seed=random_seed )[,1]
+    newpar = rmvnorm_prec( mu = parvec,
+                           prec = fit$parameter_estimates$SD$jointPrecision,
+                           n.sims = 1,
+                           random_seed = random_seed )[,1]
 
     # Simulate
-    Return = Obj$simulate( par=newpar, complete=TRUE )
+    Obj$env$data$simulate_random = 0
+    Return = Obj$simulate( par = newpar, complete=TRUE )
   }
 
   # Simulate from predictive distribution of random effects and NOT fixed effects, and then new data
   if( type==4 ){
     set.seed( random_seed )
     warning( "Type-4 residuals are still under development, please use with care and note that they may change at any point.")
-    newpar = Obj$env$last.par.best
-    MC = Obj$env$MC( keep=TRUE, n=1, antithetic=FALSE )
+    newpar = parvec
+    MC = Obj$env$MC( keep = TRUE,
+                     n = 1,
+                     antithetic = FALSE )
     newpar[Obj$env$random] = attr(MC, "samples")
 
     # Simulate
+    Obj$env$data$simulate_random = 0
     Return = Obj$simulate( par=newpar, complete=TRUE )
   }
 
