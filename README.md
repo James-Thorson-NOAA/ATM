@@ -1,6 +1,8 @@
 # ATM
 Advection-taxis movement model
 
+`ATM` can be used to fit realistic movement models to tags, survey, and fishery data.
+
 ### Demo usage
 ```R
 # Load package and case-study data
@@ -60,4 +62,74 @@ fit = fitTMB(
   alpha_ratio_bounds = 0,
   movement_penalty = 10000,
   constant_tail_probability = 1e-7 )
+```
+
+### Covariate responses
+Users can then visualize covariate-response curves using a partial-dependence-plot with or without uncertainty intervals:
+
+```R
+library(pdp)
+library(ggplot2)
+Data_zp = format_covariates( Cod_data$Cov_stars,
+                             formula=fit$formula_taxis )$Data_zp
+# MLE of effects, using predict.fit_model
+PDP = partial( fit,
+              train = Data_zp,
+              origdata = Data_zp,
+              pred.var = c("Bathy","season"),
+              type = "regression",
+              varname = "alpha_k",
+              formula = fit$formula_taxis )
+autoplot(PDP)
+
+# Sample distribution for effects
+Interval = plot_partial_dependence( x = fit,
+                                    n_samples = 100,
+                                    train = Data_zp,
+                                    pred.var = "BT",
+                                    type = "regression",
+                                    filename = paste0(run_dir,"taxis_BT_CI"),
+                                    varname = "alpha_k",
+                                    formula = fit$formula_taxis,
+                                    bounds_type = "whiskers" )
+Interval = plot_partial_dependence( x = fit,
+                                    n_samples = 100,
+                                    train = Data_zp,
+                                    pred.var = c("Bathy","season"),
+                                    type = "regression",
+                                    filename = paste0(run_dir,"taxis_Bathy_CI"),
+                                    varname = "alpha_k",
+                                    formula = fit$formula_taxis,
+                                    bounds_type = "whiskers" )
+```
+
+### Simulating new data
+Finally, `ATM` can be used as an operating model, either conditional upon estimated values (a "conditional simulator") or simulating new random effects (an "unconditional simulator").  The latter is helpful to generate a new history of the population, e.g., when manually changing movement or other parameters.
+
+```R
+# Modify newpar as needed
+# e.g., newpar[1:3] = [CHANGES]
+# Here I'm just randomizing to make a point
+newpar = fit$Obj$env$last.par.best
+newpar[grep("alpha_logit_ratio_k",names(newpar))] =
+  newpar[grep("alpha_logit_ratio_k",names(newpar))] + rnorm(length(grep("alpha_logit_ratio_k",names(newpar))))
+
+# Plot changes in preference function
+PDP = partial( fit,
+              train = Data_zp,
+              origdata = Data_zp,
+              pred.var = c("Bathy","season"),
+              type = "regression",
+              varname = "alpha_k",
+              formula = fit$formula_taxis,
+              parvec = newpar )
+autoplot(PDP)
+
+# "unconditional" simulation of random effects
+# using the new preference function
+out = simulate_data( fit,
+                     type = 2,
+                     parvec = newpar )
+out$tmp_s
+colMeans(exp(out$ln_d_st))
 ```
