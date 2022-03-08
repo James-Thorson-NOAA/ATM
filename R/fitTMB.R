@@ -296,6 +296,11 @@ predict.fitTMB <- function( x,
   }
   fulldata = rbind( newdata, origdata )
 
+  # Revert settings when done
+  report_early = x$Obj$env$data$report_early
+  revert_settings = function(report_early){x$Obj$env$data$report_early = report_early}
+  on.exit( revert_settings(report_early) )
+
   # MLE for covariance predictions
   if( prediction_type==1 ){
     #if( "parameter_estimates" %in% names(x) ){
