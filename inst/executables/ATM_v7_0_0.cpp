@@ -386,6 +386,7 @@ Type objective_function<Type>::operator() ()
   }
   REPORT( dhat_st );
   REPORT( dtilda_st );
+  REPORT( ln_d_st );  // Report in case ATM used as operating model
 
   // Log-likelihood for survey data
   Type phi = exp(ln_phi);
