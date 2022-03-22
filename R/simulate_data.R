@@ -49,6 +49,21 @@ function( fit,
     return(mu + z)
   }
 
+  # Simulate tagging data
+  # Not possible in CPP due to lack of dcat(.) likelihood and SIMULATE function
+  simulate_tags <- function( x ) {
+    # Simulate satellite tags -- include x-1 to convert R to CPP indexing
+    for( i in seq_len(nrow(x$satellite_iz)) ){
+      x$satellite_iz[i,2] = sample( (1:ncol(x$like_satellite_ig))-1, prob=x$like_satellite_ig[i,], size=1 )
+    }
+    # Simulate conventional tags -- include x-1 to convert R to CPP indexing
+    for( h in seq_len(nrow(x$conventional_hz)) ){
+      x$conventional_hz[h,2] = sample( (1:ncol(x$like_conventional_hg))-1, prob=x$like_conventional_hg[h,], size=1 )
+    }
+    # return
+    return(x)
+  }
+
   # Check for loaded VAST
   # Modified from TMB:::getUserDLL
   dlls <- getLoadedDLLs()
@@ -76,14 +91,14 @@ function( fit,
     # Change and revert settings
     set.seed(random_seed)
     Obj$env$data$simulate_random = 0
-    Return = Obj$simulate( par=parvec, complete=TRUE )
+    newpar = parvec
   }
 
   # Simulate new random effects and data
   if( type==2 ){
     set.seed(random_seed)
     Obj$env$data$simulate_random = 1
-    Return = Obj$simulate( par=parvec, complete=TRUE )
+    newpar = parvec
   }
 
   # Simulate from predictive distribution of fixed AND random effects, and then new data
@@ -102,7 +117,6 @@ function( fit,
 
     # Simulate
     Obj$env$data$simulate_random = 0
-    Return = Obj$simulate( par = newpar, complete=TRUE )
   }
 
   # Simulate from predictive distribution of random effects and NOT fixed effects, and then new data
@@ -117,16 +131,11 @@ function( fit,
 
     # Simulate
     Obj$env$data$simulate_random = 0
-    Return = Obj$simulate( par=newpar, complete=TRUE )
   }
 
-  # Fix tag
-  #  These aren't simulated in the CPP due to not having a rmultinom function in TMB
-  for( i in 1:nrow(Return$conventional_hz) ){
-    Return$conventional_hz[i,2] = sample( x=1:ncol(Return$like_conventional_hg), size=1, prob=Return$like_conventional_hg[i,] )
-  }
-  Return$like_conventional_hg[i,2] = Return$like_conventional_hg[i,2] - 1 # Must subtract 1 to do CPP indexing!
-  if( nrow(Return$satellite_iz)>0 ) stop("Not implemented")
+  # Simulate and fix tags
+  Return = Obj$simulate( par=newpar, complete=TRUE )
+  Return = simulate_tags( x=Return )
 
   # Return
   return( Return )
