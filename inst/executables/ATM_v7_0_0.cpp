@@ -205,6 +205,7 @@ Type objective_function<Type>::operator() ()
   matrix<Type> Taxis_gg( n_g, n_g );
   matrix<Type> Mprime_gg( n_g, n_g );
   array<Type> Mprime_ggt( n_g, n_g, n_t );
+  array<Type> M_ggt( n_g, n_g, n_t );
   matrix<Type> Mprimesum_gg( n_g, n_g );
   matrix<Type> Movement_gg( n_g, n_g );
   matrix<Type> Preference_gt( n_g, n_t );
@@ -274,6 +275,7 @@ Type objective_function<Type>::operator() ()
     for( int g1=0; g1<n_g; g1++ ){
     for( int g2=0; g2<n_g; g2++ ){
       Mprime_ggt(g1,g2,t) = Mprime_gg(g1,g2);
+      M_ggt(g1,g2,t) = Movement_gg(g1,g2);
     }}
 
     // Apply to satellite tags
@@ -371,7 +373,7 @@ Type objective_function<Type>::operator() ()
     }else{
       for( int g1=0; g1<n_g; g1++ ){
       for( int g2=0; g2<n_g; g2++ ){
-        dhat_st(g2,t) += exp(Beta_t(t)) * Movement_gg(g2,g1) * exp(ln_d_st(g1,t-1));
+        dhat_st(g2,t) += exp(Beta_t(t)) * M_ggt(g2,g1,t-1) * exp(ln_d_st(g1,t-1));
       }}
       for( int s_extra=n_g; s_extra<n_s; s_extra++ ){
         dhat_st(s_extra,t) = exp(Beta_t(t));
@@ -473,6 +475,7 @@ Type objective_function<Type>::operator() ()
   REPORT( Diffusion_gg );
   REPORT( Taxis_gg );
   REPORT( Mprime_ggt );
+  REPORT( M_ggt );
   REPORT( Movement_gg );
   REPORT( Mprimesum_gg );
   REPORT( Mannual_ggt );
