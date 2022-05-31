@@ -64,8 +64,17 @@ fit = fitTMB(
   constant_tail_probability = 1e-7 )
 ```
 
+### Preference landscapes
+Users can then visualize the landscape of habitat preference:
+
+```R
+X = fit$Report$Preference_gt - (rep(1,length(Cod_data$loc_gz)) %o% colMeans(fit$Report$Preference_gt))
+DF = SpatialPointsDataFrame( coords=Cod_data$loc_gz@coords, data=data.frame(X[1:length(Cod_data$loc_gz),]) )
+spplot(DF)
+```
+
 ### Covariate responses
-Users can then visualize covariate-response curves using a partial-dependence-plot with or without uncertainty intervals:
+Similarly, users can visualize covariate-response curves using a partial-dependence-plot with or without uncertainty intervals:
 
 ```R
 library(pdp)
