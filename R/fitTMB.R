@@ -35,6 +35,7 @@ function( Cov_stars,
       diffusion_bounds = 0,
       movement_penalty = 0,
       constant_tail_probability = 1e-8,
+      map = NULL,
       ... ){
 
   data_list = make_data( Cov_stars = Cov_stars,
@@ -110,7 +111,7 @@ function( Cov_stars,
       "ln_d_st" = rnorm_array( c(spatial_list$n_s,nrow(data_list$uy_tz)) )
     )
   }
-  if( cpp_version %in% c("ATM_v6_0_0","ATM_v5_0_0") ){
+  if( cpp_version %in% c("ATM_v7_0_0","ATM_v6_0_0","ATM_v5_0_0") ){
     param_list = list(
       "ln_sigma_l" = c( log(sqrt(sigma2)), rep(0,dim(data_list$Z_guyl)[4]-1) ),
       "alpha_logit_ratio_k" = 0.01 * rnorm(dim(data_list$X_guyk)[4]),
@@ -137,54 +138,56 @@ function( Cov_stars,
   }
 
   # Which map
-  map = NULL
-  # Map off betas for years without survey data
-  if( "Beta_t" %in% names(param_list) ){
-    Beta_t = 1:length(param_list$Beta_t) - 1
-    Beta_t = ifelse( Beta_t %in% c(data_list$t_j,data_list$t_f), Beta_t, NA )
-    map$Beta_t = factor(Beta_t)
-  }
-  # Map off density parameters if no survey data AND no fishery
-  if( length(data_list$b_j)==0 & length(data_list$b_f)==0 ){
-    if("ln_H_input"%in%names(param_list)) map$ln_H_input = factor(c(NA,NA))
-    if("ln_kappa"%in%names(param_list)) map$ln_kappa = factor(NA)
-    if("ln_sigma_epsilon0"%in%names(param_list)) map$ln_sigma_epsilon0 = factor(NA)
-    if("ln_sigma_epsilon"%in%names(param_list)) map$ln_sigma_epsilon = factor(NA)
-    if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
-  }
-  # Map off survey measurement-error if no survey data
-  if( length(data_list$b_j) == 0 ){
-    if("ln_phi"%in%names(param_list)) map$ln_phi = factor(NA)
-    if("power_prime"%in%names(param_list)) map$power_prime = factor(NA)
-  }
-  # Map off fishery measurement-error if no fishery data
-  if( length(data_list$b_f) == 0 ){
-    if("ln_CV"%in%names(param_list)) map$ln_CV = factor(NA)
-  }
-  # Map of catchability ratio if no fishery or no survey
-  if( length(data_list$b_f)==0 | length(data_list$b_j)==0){
-    if("lambda"%in%names(param_list)) map$lambda = factor(NA)
-  }
-  # Map off density effects for the intercept
-  if( any(dimnames(data_list$X_guyk)[[4]]=="(Intercept)") ){
-    map$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = NA
-  }
-  # Map off constants in X_guyk
-  turnoff_k = apply( data_list$X_guyk, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
-  if( any(turnoff_k) ){
-    map$alpha_logit_ratio_k = 1:length(param_list$alpha_logit_ratio_k)
-    map$alpha_logit_ratio_k[which(turnoff_k)] = NA
-    map$alpha_logit_ratio_k = factor(map$alpha_logit_ratio_k)
-    param_list$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = 0
-  }
-  # Map off constants in Z_guyl except first term
-  turnoff_l = apply( data_list$Z_guyl, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
-  turnoff_l[1] = FALSE
-  if( any(turnoff_l) ){
-    map$ln_sigma_l = 1:length(param_list$ln_sigma_l)
-    map$ln_sigma_l[which(turnoff_l)] = NA
-    map$ln_sigma_l = factor(map$ln_sigma_l)
-    param_list$ln_sigma_l[which(turnoff_l)] = 0
+  #map = NULL
+  if( is.null(map) ){
+    # Map off betas for years without survey data
+    if( "Beta_t" %in% names(param_list) ){
+      Beta_t = 1:length(param_list$Beta_t) - 1
+      Beta_t = ifelse( Beta_t %in% c(data_list$t_j,data_list$t_f), Beta_t, NA )
+      map$Beta_t = factor(Beta_t)
+    }
+    # Map off density parameters if no survey data AND no fishery
+    if( length(data_list$b_j)==0 & length(data_list$b_f)==0 ){
+      if("ln_H_input"%in%names(param_list)) map$ln_H_input = factor(c(NA,NA))
+      if("ln_kappa"%in%names(param_list)) map$ln_kappa = factor(NA)
+      if("ln_sigma_epsilon0"%in%names(param_list)) map$ln_sigma_epsilon0 = factor(NA)
+      if("ln_sigma_epsilon"%in%names(param_list)) map$ln_sigma_epsilon = factor(NA)
+      if("ln_d_st"%in%names(param_list)) map$ln_d_st = factor(array(NA,dim=dim(param_list$ln_d_st)))
+    }
+    # Map off survey measurement-error if no survey data
+    if( length(data_list$b_j) == 0 ){
+      if("ln_phi"%in%names(param_list)) map$ln_phi = factor(NA)
+      if("power_prime"%in%names(param_list)) map$power_prime = factor(NA)
+    }
+    # Map off fishery measurement-error if no fishery data
+    if( length(data_list$b_f) == 0 ){
+      if("ln_CV"%in%names(param_list)) map$ln_CV = factor(NA)
+    }
+    # Map of catchability ratio if no fishery or no survey
+    if( length(data_list$b_f)==0 | length(data_list$b_j)==0){
+      if("lambda"%in%names(param_list)) map$lambda = factor(NA)
+    }
+    # Map off density effects for the intercept
+    if( any(dimnames(data_list$X_guyk)[[4]]=="(Intercept)") ){
+      map$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = NA
+    }
+    # Map off constants in X_guyk
+    turnoff_k = apply( data_list$X_guyk, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+    if( any(turnoff_k) ){
+      map$alpha_logit_ratio_k = 1:length(param_list$alpha_logit_ratio_k)
+      map$alpha_logit_ratio_k[which(turnoff_k)] = NA
+      map$alpha_logit_ratio_k = factor(map$alpha_logit_ratio_k)
+      param_list$alpha_logit_ratio_k[which(dimnames(data_list$X_guyk)[[4]]=="(Intercept)")] = 0
+    }
+    # Map off constants in Z_guyl except first term
+    turnoff_l = apply( data_list$Z_guyl, MARGIN=4, FUN=function(x){var(as.vector(x))==0} )
+    turnoff_l[1] = FALSE
+    if( any(turnoff_l) ){
+      map$ln_sigma_l = 1:length(param_list$ln_sigma_l)
+      map$ln_sigma_l[which(turnoff_l)] = NA
+      map$ln_sigma_l = factor(map$ln_sigma_l)
+      param_list$ln_sigma_l[which(turnoff_l)] = 0
+    }
   }
 
   #
@@ -197,7 +200,7 @@ function( Cov_stars,
   #random = NULL
 
   # Return inputs
-  Return = list( "data_list"=data_list, "param_list"=param_list, "random"=random )
+  Return = list( "data_list"=data_list, "param_list"=param_list, "random"=random, "map"=map )
 
   # Optionally build and run
   if( build_model == TRUE ){
@@ -266,18 +269,22 @@ print.fitTMB <- function(x, ...)
 #' Predict habitat preference
 #'
 #' @title Print parameter estimates
+#'
+#' @inheritParams simulate_data
 #' @param x Output from \code{\link{fitTMB}}
 #' @param ... Not used
+#'
 #' @return NULL
 #' @method predict fitTMB
 #' @export
-predict.fitTMB <- function(x,
+predict.fitTMB <- function( x,
                newdata,
                formula,
                varname = "alpha_k",
                origdata = NULL,
                prediction_type = 1,
-               seed = NULL )
+               seed = NULL,
+               parvec = x$Obj$env$last.par.best )
 {
   #message("Running `predict.fitTMB`")
   if( !is.null(origdata) ){
@@ -289,14 +296,26 @@ predict.fitTMB <- function(x,
   }
   fulldata = rbind( newdata, origdata )
 
+  # Revert settings when done
+  report_early = x$Obj$env$data$report_early
+  revert_settings = function(report_early){x$Obj$env$data$report_early = report_early}
+  on.exit( revert_settings(report_early) )
+
   # MLE for covariance predictions
   if( prediction_type==1 ){
-    if( "parameter_estimates" %in% names(x) ){
-      if(varname=="alpha_k") var_vec = c( 0, x$Report$alpha_k )
-      if(varname=="ln_sigma_l") var_vec = x$Report$ln_sigma_l
-    }else{
-      stop("`parameter_estimates` not available in `fitTMB`\n")
-    }
+    #if( "parameter_estimates" %in% names(x) ){
+      if( all(parvec==x$Obj$env$last.par.best) ){
+        Report = x$Report
+      }else{
+        #x$Obj$retape()
+        x$Obj$env$data$report_early = 1
+        Report = x$Obj$report( parvec )
+      }
+      if(varname=="alpha_k") var_vec = c( 0, Report$alpha_k )
+      if(varname=="ln_sigma_l") var_vec = Report$ln_sigma_l
+    #}else{
+    #  stop("`parameter_estimates` not available in `fitTMB`\n")
+    #}
   }
   if( prediction_type==2 ){
     if( "SD" %in% names(x$parameter_estimates) ){
@@ -384,6 +403,10 @@ function( x,
   if( tolower(what) %in% c("survey_residuals","fishery_residuals") ){
     # extract objects
     Obj = x$Obj
+
+    # Revert settings when done
+    revert_settings = function(simulate_random){Obj$env$data$simulate_random = simulate_random}
+    on.exit( revert_settings(simulate_random) )
 
     message( "Sampling from the distribution of data conditional on estimated fixed and random effects" )
     if( what == "survey_residuals" ){

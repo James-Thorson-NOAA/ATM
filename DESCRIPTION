@@ -21,4 +21,4 @@ Depends:
 URL: http://github.com/James-Thorson-NOAA/ATM
 BugReports: http://github.com/James-Thorson-NOAA/ATM/issues
 License: GPL-3
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2

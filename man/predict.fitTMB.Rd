@@ -11,11 +11,17 @@
   varname = "alpha_k",
   origdata = NULL,
   prediction_type = 1,
-  seed = NULL
+  seed = NULL,
+  parvec = x$Obj$env$last.par.best
 )
 }
 \arguments{
 \item{x}{Output from \code{\link{fitTMB}}}
+
+\item{parvec}{vector of parameters to use as fixed values (or use as mean when simulating new parameters),
+to be used when simulating new data.
+default \code{par=fit$Obj$env$last.par.best} uses the best previous value,
+i.e., MLE if the model is optimized.}
 
 \item{...}{Not used}
 }

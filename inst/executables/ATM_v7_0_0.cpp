@@ -102,13 +102,16 @@ Type objective_function<Type>::operator() ()
   // Options
   //DATA_STRUCT( Options_list, options_list );
 
-  // Data
+  // Options
   DATA_INTEGER( log2steps );
   DATA_SCALAR( constant_tail_probability );
   DATA_SCALAR( alpha_ratio_bounds );
   DATA_INTEGER( diffusion_bounds );
   DATA_SCALAR( movement_penalty );
   DATA_INTEGER( report_early );
+  DATA_INTEGER( simulate_random );
+
+  // Data
   DATA_ARRAY( X_guyk );
   DATA_ARRAY( Z_guyl );
   DATA_IMATRIX( uy_tz );
@@ -202,6 +205,7 @@ Type objective_function<Type>::operator() ()
   matrix<Type> Taxis_gg( n_g, n_g );
   matrix<Type> Mprime_gg( n_g, n_g );
   array<Type> Mprime_ggt( n_g, n_g, n_t );
+  array<Type> M_ggt( n_g, n_g, n_t );
   matrix<Type> Mprimesum_gg( n_g, n_g );
   matrix<Type> Movement_gg( n_g, n_g );
   matrix<Type> Preference_gt( n_g, n_t );
@@ -271,6 +275,7 @@ Type objective_function<Type>::operator() ()
     for( int g1=0; g1<n_g; g1++ ){
     for( int g2=0; g2<n_g; g2++ ){
       Mprime_ggt(g1,g2,t) = Mprime_gg(g1,g2);
+      M_ggt(g1,g2,t) = Movement_gg(g1,g2);
     }}
 
     // Apply to satellite tags
@@ -322,6 +327,101 @@ Type objective_function<Type>::operator() ()
     }
   }
 
+  // Biomass field
+
+  // Anisotropy elements
+  matrix<Type> H(2,2);
+  H(0,0) = exp(ln_H_input(0));
+  H(1,0) = ln_H_input(1);
+  H(0,1) = ln_H_input(1);
+  H(1,1) = (1.0+ln_H_input(1)*ln_H_input(1)) / exp(ln_H_input(0));
+
+  // GMRF precision
+  Eigen::SparseMatrix<Type> Q( n_s, n_s );
+  GMRF_t<Type> gmrf_Q;
+  Q = Q_spde(spde_aniso, exp(ln_kappa), H);
+  gmrf_Q = GMRF( Q );
+  Type logtau = log( 1.0 / (exp(ln_kappa) * sqrt(4.0*M_PI)) );
+
+  // Log-likelihood from GMRF
+  array<Type> dtilda_st( n_s, n_t );
+
+  // Assemble predicted density
+  array<Type> dhat_st( n_s, n_t );
+  dhat_st.setZero();
+  vector<Type> tmp_s( n_s );
+  tmp_s.setZero();
+  for( int t=0; t<n_t; t++ ){
+    if( t==0 ){
+      for( int g=0; g<n_g; g++ ){
+        dhat_st(g,0) = exp(Beta_t(0));
+      }
+      for( int s_extra=n_g; s_extra<n_s; s_extra++ ){
+        dhat_st(s_extra,0) = exp(Beta_t(0));
+      }
+      dtilda_st.col(0) = (ln_d_st.col(0) - log(dhat_st.col(0))) / exp(ln_sigma_epsilon0);
+      nll_t(0) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon0) )( ln_d_st.col(0) - log(dhat_st.col(0)) );
+      if( simulate_random == 1 ){
+//        dtilda_st.col(0) = tmp_s;
+//        ln_d_st.col(0) = tmp_s;
+        SIMULATE{
+          gmrf_Q.simulate(tmp_s);
+          dtilda_st.col(0) = tmp_s * exp(ln_sigma_epsilon0) / exp(logtau);
+          ln_d_st.col(0) = log(dhat_st.col(0)) + dtilda_st.col(0);
+        }
+      }
+    }else{
+      for( int g1=0; g1<n_g; g1++ ){
+      for( int g2=0; g2<n_g; g2++ ){
+        dhat_st(g2,t) += exp(Beta_t(t)) * M_ggt(g2,g1,t-1) * exp(ln_d_st(g1,t-1));
+      }}
+      for( int s_extra=n_g; s_extra<n_s; s_extra++ ){
+        dhat_st(s_extra,t) = exp(Beta_t(t));
+      }
+      dtilda_st.col(t) = (ln_d_st.col(t) - log(dhat_st.col(t))) / exp(ln_sigma_epsilon);
+      nll_t(t) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon) )( ln_d_st.col(t) - log(dhat_st.col(t)) );
+      if( simulate_random == 1 ){
+//        dtilda_st.col(t) = tmp_s;
+//        ln_d_st.col(t) = tmp_s;
+        SIMULATE{
+          gmrf_Q.simulate(tmp_s);
+          dtilda_st.col(t) = tmp_s * exp(ln_sigma_epsilon) / exp(logtau);
+          ln_d_st.col(t) = log(dhat_st.col(t)) + dtilda_st.col(t);
+        }
+      }
+    }
+  }
+  REPORT( dhat_st );
+  REPORT( dtilda_st );
+  REPORT( ln_d_st );  // Report in case ATM used as operating model
+  REPORT( tmp_s );
+
+  // Log-likelihood for survey data
+  Type phi = exp(ln_phi);
+  Type power = 1.0 + invlogit( power_prime );
+  vector<Type> bhat_j( n_j );
+  for( int j=0; j<n_j; j++ ){
+    bhat_j(j) = exp(ln_d_st(g_j(j),t_j(j)));
+    nll_j(j) = -1 * dtweedie( b_j(j), bhat_j(j), phi, power, true );
+    SIMULATE{
+      b_j(j) = rTweedie( bhat_j(j), phi, power );   // Defined above
+    }
+    REPORT( bhat_j );
+  }
+
+  // Log-likelihood for fishery data
+  Type CV_squared = exp(2 * ln_CV);
+  vector<Type> bhat_f( n_f );
+  for( int f=0; f<n_f; f++ ){
+    bhat_f(f) = exp( ln_d_st(g_f(f),t_f(f)) + lambda );
+    // shape = 1/CV^2;   scale = mean*CV^2
+    nll_f(f) = -1 * dgamma( b_f(f), 1/CV_squared, bhat_f(f)*CV_squared, true );
+    SIMULATE{
+      b_f(f) = rgamma( 1/CV_squared, bhat_f(f)*CV_squared );   // Defined above
+    }
+    REPORT( bhat_f );
+  }
+
   // Calculate log-likelihood for sat-tags
   for( int i=0; i<n_i; i++ ){
     for( int g=0; g<n_g; g++ ){
@@ -341,79 +441,6 @@ Type objective_function<Type>::operator() ()
       like_conventional_hg(h,g) = (Eprime_guy(g,uy_tz(conventional_hz(h,3),0),uy_tz(conventional_hz(h,3),1)) * prob_conventional_hgt(h,g,conventional_hz(h,3))) / tmpsum;
     }
     nll_h(h) = -1 * log( like_conventional_hg(h,conventional_hz(h,1)) );
-  }
-
-  // Survey and fishery data -- Skip if survey AND fishery data not present
-  if( (n_j>0) | (n_f>0) ){
-    // Anisotropy elements
-    matrix<Type> H(2,2);
-    H(0,0) = exp(ln_H_input(0));
-    H(1,0) = ln_H_input(1);
-    H(0,1) = ln_H_input(1);
-    H(1,1) = (1.0+ln_H_input(1)*ln_H_input(1)) / exp(ln_H_input(0));
-
-    // Assemble predicted density
-    array<Type> dhat_st( n_s, n_t );
-    dhat_st.setZero();
-    for( int t=0; t<n_t; t++ ){
-      if( t==0 ){
-        for( int g=0; g<n_g; g++ ){
-          dhat_st(g,t) = exp(Beta_t(t));
-        }
-      }else{
-        for( int g1=0; g1<n_g; g1++ ){
-        for( int g2=0; g2<n_g; g2++ ){
-          dhat_st(g2,t) += exp(Beta_t(t)) * Movement_gg(g2,g1) * exp(ln_d_st(g1,t-1));
-        }}
-      }
-      for( int s_extra=n_g; s_extra<n_s; s_extra++ ){
-        dhat_st(s_extra,t) = exp(Beta_t(t));
-      }
-    }
-    REPORT( dhat_st );
-
-    // GMRF precision
-    Eigen::SparseMatrix<Type> Q( n_s, n_s );
-    GMRF_t<Type> gmrf_Q;
-    Q = Q_spde(spde_aniso, exp(ln_kappa), H);
-    gmrf_Q = GMRF( Q );
-    Type logtau = log( 1.0 / (exp(ln_kappa) * sqrt(4.0*M_PI)) );
-
-    // Log-likelihood from GMRF
-    array<Type> dtilda_st( n_s, n_t );
-    dtilda_st.col(0) = (ln_d_st.col(0) - log(dhat_st.col(0))) / exp(ln_sigma_epsilon0);
-    nll_t(0) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon0) )( ln_d_st.col(0) - log(dhat_st.col(0)) );
-    for( int t=1; t<n_t; t++ ){
-      dtilda_st.col(t) = (ln_d_st.col(t) - log(dhat_st.col(t))) / exp(ln_sigma_epsilon);
-      nll_t(t) = SCALE( gmrf_Q, exp(-logtau) * exp(ln_sigma_epsilon) )( ln_d_st.col(t) - log(dhat_st.col(t)) );
-    }
-    REPORT( dtilda_st );
-
-    // Log-likelihood for survey data
-    Type phi = exp(ln_phi);
-    Type power = 1.0 + invlogit( power_prime );
-    vector<Type> bhat_j( n_j );
-    for( int j=0; j<n_j; j++ ){
-      bhat_j(j) = exp(ln_d_st(g_j(j),t_j(j)));
-      nll_j(j) = -1 * dtweedie( b_j(j), bhat_j(j), phi, power, true );
-      SIMULATE{
-        b_j(j) = rTweedie( bhat_j(j), phi, power );   // Defined above
-      }
-      REPORT( bhat_j );
-    }
-
-    // Log-likelihood for fishery data
-    Type CV_squared = exp(2 * ln_CV);
-    vector<Type> bhat_f( n_f );
-    for( int f=0; f<n_f; f++ ){
-      bhat_f(f) = exp( ln_d_st(g_f(f),t_f(f)) + lambda );
-      // shape = 1/CV^2;   scale = mean*CV^2
-      nll_f(f) = -1 * dgamma( b_f(f), 1/CV_squared, bhat_f(f)*CV_squared, true );
-      SIMULATE{
-        b_f(f) = rgamma( 1/CV_squared, bhat_f(f)*CV_squared );   // Defined above
-      }
-      REPORT( bhat_f );
-    }
   }
 
   // Calculate annualized movement
@@ -448,6 +475,7 @@ Type objective_function<Type>::operator() ()
   REPORT( Diffusion_gg );
   REPORT( Taxis_gg );
   REPORT( Mprime_ggt );
+  REPORT( M_ggt );
   REPORT( Movement_gg );
   REPORT( Mprimesum_gg );
   REPORT( Mannual_ggt );

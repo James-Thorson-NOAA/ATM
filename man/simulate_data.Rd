@@ -4,7 +4,12 @@
 \alias{simulate_data}
 \title{Simulate new dynamics and sampling data}
 \usage{
-simulate_data(fit, type = 1, random_seed = NULL)
+simulate_data(
+  fit,
+  type = 1,
+  random_seed = NULL,
+  parvec = fit$Obj$env$last.par.best
+)
 }
 \arguments{
 \item{fit}{output form \code{fit_model(.)}}
@@ -20,6 +25,11 @@ and new data conditional upon these values.
 }}
 
 \item{random_seed}{integer passed to \code{set.seed}, where the default value \code{random_seed=NULL} resets the random-number seed.}
+
+\item{parvec}{vector of parameters to use as fixed values (or use as mean when simulating new parameters),
+to be used when simulating new data.
+default \code{par=fit$Obj$env$last.par.best} uses the best previous value,
+i.e., MLE if the model is optimized.}
 }
 \value{
 Report object containing new data and population variables including
