@@ -26,8 +26,8 @@ spatial_list = FishStatsUtils::make_spatial_info(
   fine_scale = FALSE,
   n_x = nrow(lonlat_gz@coords),
   Extrapolation_List = extrapolation_list,
-  Lon_i = lonlat_gz@coords[,'x'],
-  Lat_i = lonlat_gz@coords[,'y'],
+  Lon_i = lonlat_gz@coords[,1],
+  Lat_i = lonlat_gz@coords[,2],
   knot_method = "samples",
   grid_size_km = 5000 )
 
